@@ -51,6 +51,7 @@ type Command struct {
 	Token            string `gorm:"-"`
 	Limit            int    `gorm:"-"`
 	Unique           bool   `gorm:"-"`
+	Query            string `gorm:"-"`
 }
 
 // {"mac": "83779604164095", "hostname": "yay.local", "name": "yay.local", "clientVersion": "1.2.0"}
@@ -151,15 +152,26 @@ func Run() {
 		command.Limit = 100
 		if c.Query("limit") != "" {
 			if num, err := strconv.Atoi(c.Query("limit")); err != nil {
+				fmt.Println("100")
+				command.Limit = 100
+			}else {
+				fmt.Println("num")
 				command.Limit = num
 			}
 		}
 		if c.Query("unique") == "true" {
 			command.Unique = true
-		}else {
+		} else {
 			command.Unique = false
 		}
+		command.Path = c.Query("path")
+		command.Query = c.Query("query")
+
 		result := command.commandGet()
+		if len(result) == 0 {
+			c.JSON(http.StatusOK, gin.H{})
+			return
+		}
 		c.IndentedJSON(http.StatusOK, result)
 
 	})

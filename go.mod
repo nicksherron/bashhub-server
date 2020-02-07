@@ -8,6 +8,7 @@ require (
 	github.com/jinzhu/gorm v1.9.12
 	github.com/lacion/cookiecutter_golang_example v0.0.0-20191209145422-f4f6c7d38761
 	github.com/lib/pq v1.3.0
+	github.com/mattn/go-sqlite3 v2.0.1+incompatible
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.5 // indirect
 )

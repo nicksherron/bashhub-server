@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	_ "github.com/lib/pq"
+	"github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -38,15 +40,30 @@ func DbInit() {
 		}
 		connectionLimit = 50
 	} else {
-		DbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc", DbPath)
-		DB, err = sql.Open("sqlite3", DbPath)
-		if err != nil {
-			log.Fatal(err)
-		}
+
 		gormdb, err = gorm.Open("sqlite3", DbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		regexFn := func(re, s string) (bool, error) {
+			b, e := regexp.MatchString(re, s)
+			return b, e
+		}
+
+		sql.Register("sqlite3_with_go_func_test",
+			&sqlite3.SQLiteDriver{
+				ConnectHook: func(conn *sqlite3.SQLiteConn) error {
+					return conn.RegisterFunc("regexp", regexFn, true)
+				},
+			})
+
+		DbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc", DbPath)
+		DB, err = sql.Open("sqlite3_with_go_func_test", DbPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		DB.Exec("PRAGMA journal_mode=WAL;")
 		connectionLimit = 1
 
@@ -65,7 +82,7 @@ func DbInit() {
 
 func (user User) userExists() bool {
 	var exists bool
-	err := DB.QueryRow("SELECT exists (select id from users where username = $1 and password = $2)",
+	err := DB.QueryRow("SELECT exists (select id FROM users WHERE username = $1 AND password = $2)",
 		user.Username, user.Password).Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
 		log.Fatalf("error checking if row exists %v", err)
@@ -74,7 +91,7 @@ func (user User) userExists() bool {
 }
 
 func (user User) userCreate() int64 {
-	res, err := DB.Exec(`INSERT into users("registration_code", "username","password","email")
+	res, err := DB.Exec(`INSERT INTO users("registration_code", "username","password","email")
  							 VALUES ($1,$2,$3,$4) ON CONFLICT(username) do nothing`, user.RegistrationCode,
 		user.Username, user.Password, user.Email)
 	if err != nil {
@@ -88,7 +105,7 @@ func (user User) userCreate() int64 {
 }
 
 func (user User) updateToken() {
-	_, err := DB.Exec(`UPDATE users set "token" = $1 where "username" = $2 `, user.Token, user.Username)
+	_, err := DB.Exec(`UPDATE users SET "token" = $1 WHERE "username" = $2 `, user.Token, user.Username)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -96,7 +113,7 @@ func (user User) updateToken() {
 
 func (user User) tokenExists() bool {
 	var exists bool
-	err := DB.QueryRow("SELECT exists (select id from users where token = $1)",
+	err := DB.QueryRow("SELECT exists (select id FROM users WHERE token = $1)",
 		user.Token).Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
 		log.Fatalf("error checking if row exists %v", err)
@@ -105,9 +122,9 @@ func (user User) tokenExists() bool {
 }
 
 func (cmd Command) commandInsert() int64 {
-	res, err := DB.Exec(`INSERT into commands("uuid", "command", "created", "user_id")
- 							 VALUES ($1,$2,$3,(select "id" from users where "token" = $4))`,
-		cmd.Uuid, cmd.Command, cmd.Created, cmd.Token)
+	res, err := DB.Exec(`INSERT INTO commands("uuid", "command", "created", "path", "user_id")
+ 							 VALUES ($1,$2,$3,$4,(select "id" FROM users WHERE "token" = $5))`,
+		cmd.Uuid, cmd.Command, cmd.Created, cmd.Path, cmd.Token)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,26 +135,126 @@ func (cmd Command) commandInsert() int64 {
 	return inserted
 }
 
+//func(cmd Command) commandGetUUID(){
+//}
+
 func (cmd Command) commandGet() []Query {
+	fmt.Println(cmd.Query)
+	fmt.Println(cmd.Limit)
+	fmt.Println(cmd.Unique)
+	fmt.Println(cmd.Path)
 	var results []Query
 	var rows *sql.Rows
 	var err error
-	if cmd.Unique {
+	if cmd.Unique || cmd.Query != "" {
+		//postgres
 		if connectionLimit != 1 {
-			// postgres
-			rows, err = DB.Query(`SELECT DISTINCT on ("command") command,  "uuid", "created" from commands
-								 where "user_id" in (select "id" from users where "token" = $1) 
-								  order by "command", "created"  limit $2`, cmd.Token, cmd.Limit)
+			if cmd.Path != "" && cmd.Query != "" && cmd.Unique {
+				rows, err = DB.Query(`SELECT * FROM  ( 
+										    SELECT DISTINCT ON ("command") command, "uuid", "created"
+										    FROM commands
+										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
+										   	AND "path" = $3 AND "command" ~ $4
+										    ) c
+										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Path, cmd.Query)
+
+			} else if cmd.Path != "" && cmd.Query != "" {
+				rows, err = DB.Query(`SELECT "command", "uuid", "created"
+										    FROM commands
+										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
+										   	AND "path" = $3 AND "command" ~ $4
+											ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Path, cmd.Query)
+
+			} else if cmd.Path != "" && cmd.Unique {
+				rows, err = DB.Query(`SELECT * FROM  ( 
+										    SELECT DISTINCT ON ("command") command, "uuid", "created"
+										    FROM commands
+										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
+										   	AND "path" = $3
+										    ) c
+										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Path)
+
+			} else if cmd.Query != "" && cmd.Unique {
+				rows, err = DB.Query(`SELECT * FROM  ( 
+										    SELECT DISTINCT ON ("command") command, "uuid", "created"
+										    FROM commands
+										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
+										   	AND "command" ~ $3
+										    ) c
+										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Query)
+
+			} else if cmd.Query != "" {
+				rows, err = DB.Query(`SELECT "command", "uuid", "created"
+										    FROM commands
+										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
+										   	AND "command" ~ $3
+										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Query)
+
+			} else {
+				// unique
+				rows, err = DB.Query(`SELECT * FROM  ( 
+										    SELECT DISTINCT ON ("command") command, "uuid", "created"
+										    FROM commands
+										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1) 
+										    ) c
+										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit)
+			}
 		} else {
 			// sqlite
-			rows, err = DB.Query(`SELECT "command",  "uuid", "created" from commands
-								 where "user_id" in (select "id" from users where "token" = $1)
-								 group by "command" order by "created" limit $2`, cmd.Token, cmd.Limit)
+			if cmd.Path != "" && cmd.Query != "" && cmd.Unique {
+				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
+				WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v')
+					AND "path" = '%v' AND "command" regexp '%v'
+					GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`, cmd.Token, cmd.Limit, cmd.Path, cmd.Query)
+
+				rows, err = DB.Query(query)
+			} else if cmd.Path != "" && cmd.Query != "" {
+				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
+									 WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v') 
+									 AND "path" = %v' AND "command" regexp %v'
+									 ORDER  BY  "created" DESC limit '%v'`, cmd.Token, cmd.Path, cmd.Query, cmd.Limit)
+
+				rows, err = DB.Query(query)
+
+			} else if cmd.Path != "" && cmd.Unique {
+				rows, err = DB.Query(`SELECT "command",  "uuid", "created" FROM commands
+									 WHERE "user_id" IN (select "id" FROM users WHERE "token" = $1) 
+									 AND "path" = $3
+									 GROUP BY "command" ORDER  BY  "created" DESC limit $2`, cmd.Token, cmd.Limit, cmd.Path)
+
+			} else if cmd.Query != "" && cmd.Unique {
+				query := fmt.Sprintf(`SELECT "command", "uuid", "created" FROM commands
+				WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v') 
+				AND"command" regexp '%v'  
+				GROUP BY "command" ORDER  BY "created" DESC limit '%v'`, cmd.Token, cmd.Query, cmd.Limit)
+				rows, err = DB.Query(query)
+
+			} else if cmd.Query != "" {
+				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
+									 WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v') 
+									 AND "command" regexp'%v'
+									 ORDER  BY  "created" DESC limit '%v'`, cmd.Token, cmd.Query, cmd.Limit)
+				rows, err = DB.Query(query)
+
+			} else {
+				// unique
+				rows, err = DB.Query(`SELECT "command", "uuid", "created"
+										    FROM commands
+										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
+										GROUP BY "command"  ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit)
+			}
 		}
 	} else {
-		rows, err = DB.Query(`SELECT "command",  "uuid", "created" from commands
-								 where "user_id" in (select "id" from users where "token" = $1)
-								 order  by "created"  limit $2`, cmd.Token, cmd.Limit)
+		if cmd.Path != "" {
+			rows, err = DB.Query(`SELECT "command",  "uuid", "created" FROM commands
+								 WHERE "user_id" IN (select "id" FROM users WHERE "token" = $1) AND "path" = $3
+								 ORDER  BY  "created" DESC limit $2`, cmd.Token, cmd.Limit, cmd.Path)
+		} else {
+			rows, err = DB.Query(`SELECT "command",  "uuid", "created" FROM commands
+								 WHERE "user_id" IN (select "id" FROM users WHERE "token" = $1)
+								 ORDER  BY  "created" DESC limit $2`, cmd.Token, cmd.Limit)
+		}
+
 	}
 
 	if err != nil {
@@ -152,7 +269,7 @@ func (cmd Command) commandGet() []Query {
 		}
 		results = append(results, result)
 	}
-
+	fmt.Println(results)
 	return results
 
 }
@@ -160,8 +277,8 @@ func (cmd Command) commandGet() []Query {
 func (sys System) systemInsert() int64 {
 
 	t := time.Now().Unix()
-	res, err := DB.Exec(`INSERT into systems ("name", "mac", "user_id", "hostname", "client_version", "created", "updated")
- 									  VALUES ($1, $2, (select "id" from users where "token" = $3), $4, $5, $6, $7)`,
+	res, err := DB.Exec(`INSERT INTO systems ("name", "mac", "user_id", "hostname", "client_version", "created", "updated")
+ 									  VALUES ($1, $2, (select "id" FROM users WHERE "token" = $3), $4, $5, $6, $7)`,
 		sys.Name, sys.Mac, sys.Token, sys.Hostname, sys.ClientVersion, t, t)
 	if err != nil {
 		log.Fatal(err)
@@ -176,7 +293,7 @@ func (sys System) systemInsert() int64 {
 func (sys System) systemGet() (SystemQuery, error) {
 	var row SystemQuery
 	err := DB.QueryRow(`SELECT "name", "mac", "user_id", "hostname", "client_version",
- 									  "id", "created", "updated" from systems where mac = $1`,
+ 									  "id", "created", "updated" FROM systems WHERE mac = $1`,
 		sys.Mac).Scan(&row)
 	if err != nil {
 		return SystemQuery{}, err
@@ -185,6 +302,9 @@ func (sys System) systemGet() (SystemQuery, error) {
 
 }
 
-//SELECT DISTINCT on ("command"), "uuid", "created" from commands
-//where "user_id" in (select "id" from users where "token" = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJJZCI6Im5pY')
-//desc limit 1;
+//
+//SELECT "command", "uuid", "created"
+//FROM commands
+//WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJJZCI6ImZvb')
+//WHERE SUBSTRING("command" FROM 'l.*')
+//ORDER BY "created" DESC limit 10;
