@@ -39,4 +39,3 @@ WORKDIR /data
 EXPOSE 8080
 
 ENTRYPOINT ["bashhub-server"]
-CMD ["--help"]
