@@ -1,40 +1,42 @@
-# Build Stage
-FROM nicksherron/bashhub-server-build:1.13 AS build-stage
+# GitHub:       https://github.com/nicksherron/bashhub-server
+FROM golang:1.13-alpine AS build
 
-LABEL app="build-bashhub-server"
-LABEL REPO="https://github.com/nicksherron/bashhub-server"
+ARG VERSION
+ARG GIT_COMMIT
+ARG BUILD_DATE
 
-ENV PROJPATH=/go/src/github.com/nicksherron/bashhub-server
+ARG CGO=1
+ENV CGO_ENABLED=${CGO}
+ENV GOOS=linux
+ENV GO111MODULE=on
 
-# Because of https://github.com/docker/docker/issues/14914
-ENV PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-
-ADD . /go/src/github.com/nicksherron/bashhub-server
 WORKDIR /go/src/github.com/nicksherron/bashhub-server
 
-RUN make build-alpine
+COPY . /go/src/github.com/nicksherron/bashhub-server/
 
-# Final Stage
-FROM nicksherron/bashhub-server
+# gcc/g++ are required to build SASS libraries for extended version
+RUN apk update && \
+    apk add --no-cache gcc g++ musl-dev
 
-ARG GIT_COMMIT
-ARG VERSION
-LABEL REPO="https://github.com/nicksherron/bashhub-server"
-LABEL GIT_COMMIT=$GIT_COMMIT
-LABEL VERSION=$VERSION
 
-# Because of https://github.com/docker/docker/issues/14914
-ENV PATH=$PATH:/opt/bashhub-server/bin
+RUN go build -ldflags '-w -linkmode external -extldflags "-static" -X github.com/nicksherron/bashhub-server/version.GitCommit=${GIT_COMMIT} -X github.com/nicksherron/bashhub-server/version.BuildDate=${BUILD_DATE}' -o bin/${BIN_NAME}
 
-WORKDIR /opt/bashhub-server/bin
+# ---
 
-COPY --from=build-stage /go/src/github.com/nicksherron/bashhub-server/bin/bashhub-server /opt/bashhub-server/bin/
-RUN chmod +x /opt/bashhub-server/bin/bashhub-server
+FROM alpine:3.11
 
-# Create appuser
-RUN adduser -D -g '' bashhub-server
-USER bashhub-server
+COPY --from=build /go/bin/bashhub-server /usr/bin/bashhub-server
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+# libc6-compat & libstdc++ are required for extended SASS libraries
+# ca-certificates are required to fetch outside resources (like Twitter oEmbeds)
+RUN apk update && \
+    apk add --no-cache ca-certificates libc6-compat libstdc++
 
-CMD ["/opt/bashhub-server/bin/bashhub-server"]
+VOLUME /data
+WORKDIR /data
+
+# Expose port for live server
+EXPOSE 4444
+
+ENTRYPOINT ["bashhub-server"]
+CMD ["--help"]

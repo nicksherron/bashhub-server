@@ -1,4 +1,4 @@
-.PHONY: build build-alpine clean test help default
+.PHONY: build build-alpine clean test help default docker-build
 
 BIN_NAME=bashhub-server
 
@@ -31,6 +31,11 @@ build:
 
 get-deps:
 	dep ensure
+
+
+docker-build:
+	docker build --no-cache=true --build-arg VERSION=${VERSION} --build-arg BUILD_DATE=${BUILD_DATE} --build-arg GIT_COMMIT=${GIT_COMMIT} -t $(IMAGE_NAME) .
+
 
 build-alpine:
 	@echo "building ${BIN_NAME} ${VERSION}"
