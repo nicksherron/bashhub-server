@@ -123,10 +123,19 @@ func (cmd Command) commandGet() []Query {
 	var rows *sql.Rows
 	var err error
 	if cmd.Unique {
-		rows, err = DB.Query(`SELECT "command",  "uuid", "created" from commands
+		if connectionLimit != 1 {
+			// postgres
+			rows, err = DB.Query(`SELECT DISTINCT on ("command"),  "uuid", "created" from commands
 								 where "user_id" in (select "id" from users where "token" = $1)
-								  group by command order by created desc limit $2`,
-			cmd.Token, cmd.Limit)
+								 order by created desc limit $2`,
+				cmd.Token, cmd.Limit)
+		}else {
+			// sqlite
+			rows, err = DB.Query(`SELECT "command",  "uuid", "created" from commands
+								 where "user_id" in (select "id" from users where "token" = $1)
+								 group by "command" order by created desc limit $2`,
+				cmd.Token, cmd.Limit)
+		}
 	} else {
 		rows, err = DB.Query(`SELECT "command",  "uuid", "created" from commands
 								 where "user_id" in (select "id" from users where "token" = $1) order by created desc limit $2`,

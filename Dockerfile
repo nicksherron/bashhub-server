@@ -19,7 +19,7 @@ RUN apk update && \
     apk add --no-cache gcc g++ musl-dev
 
 
-RUN go build -ldflags '-w -linkmode external -extldflags "-static" -X github.com/nicksherron/bashhub-server/version.GitCommit=${GIT_COMMIT} -X github.com/nicksherron/bashhub-server/version.BuildDate=${BUILD_DATE}' -o bin/${BIN_NAME}
+RUN go build -ldflags '-w -linkmode external -extldflags "-static" -X github.com/nicksherron/bashhub-server/version.GitCommit=${GIT_COMMIT} -X github.com/nicksherron/bashhub-server/version.BuildDate=${BUILD_DATE}' -o /go/bin/bashhub-server
 
 # ---
 
@@ -36,7 +36,7 @@ VOLUME /data
 WORKDIR /data
 
 # Expose port for live server
-EXPOSE 4444
+EXPOSE 8080
 
 ENTRYPOINT ["bashhub-server"]
 CMD ["--help"]

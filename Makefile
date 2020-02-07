@@ -34,7 +34,7 @@ get-deps:
 
 
 docker-build:
-	docker build --no-cache=true --build-arg VERSION=${VERSION} --build-arg BUILD_DATE=${BUILD_DATE} --build-arg GIT_COMMIT=${GIT_COMMIT} -t $(IMAGE_NAME) .
+	docker build --no-cache=true --build-arg VERSION=${VERSION} --build-arg BUILD_DATE=${BUILD_DATE} --build-arg GIT_COMMIT=${GIT_COMMIT}  -t $(IMAGE_NAME) .
 
 
 build-alpine:
@@ -48,11 +48,11 @@ package:
 
 tag: 
 	@echo "Tagging: latest ${VERSION} $(GIT_COMMIT)"
-	docker tag $(IMAGE_NAME):local $(IMAGE_NAME):$(GIT_COMMIT)
-	docker tag $(IMAGE_NAME):local $(IMAGE_NAME):${VERSION}
-	docker tag $(IMAGE_NAME):local $(IMAGE_NAME):latest
+	docker tag $(IMAGE_NAME) $(IMAGE_NAME):$(GIT_COMMIT)
+	docker tag $(IMAGE_NAME) $(IMAGE_NAME):${VERSION}
+	docker tag $(IMAGE_NAME) $(IMAGE_NAME):latest
 
-push: tag
+push: docker-build tag
 	@echo "Pushing docker image to registry: latest ${VERSION} $(GIT_COMMIT)"
 	docker push $(IMAGE_NAME):$(GIT_COMMIT)
 	docker push $(IMAGE_NAME):${VERSION}
