@@ -125,21 +125,17 @@ func (cmd Command) commandGet() []Query {
 	if cmd.Unique {
 		if connectionLimit != 1 {
 			// postgres
-			rows, err = DB.Query(`SELECT DISTINCT on ("command"),  "uuid", "created" from commands
-								 where "user_id" in (select "id" from users where "token" = $1)
-								 order by created desc limit $2`,
-				cmd.Token, cmd.Limit)
+			rows, err = DB.Query(`SELECT DISTINCT on ("command") command,  "uuid", "created" from commands
+								 where "user_id" in (select "id" from users where "token" = $1) limit $2`, cmd.Token, cmd.Limit)
 		}else {
 			// sqlite
 			rows, err = DB.Query(`SELECT "command",  "uuid", "created" from commands
 								 where "user_id" in (select "id" from users where "token" = $1)
-								 group by "command" order by created desc limit $2`,
-				cmd.Token, cmd.Limit)
+								 group by "command" limit $2`, cmd.Token, cmd.Limit)
 		}
 	} else {
 		rows, err = DB.Query(`SELECT "command",  "uuid", "created" from commands
-								 where "user_id" in (select "id" from users where "token" = $1) order by created desc limit $2`,
-			cmd.Token, cmd.Limit)
+								 where "user_id" in (select "id" from users where "token" = $1) limit $2`, cmd.Token, cmd.Limit)
 	}
 
 	if err != nil {
@@ -186,3 +182,7 @@ func (sys System) systemGet() (SystemQuery, error) {
 	return row, nil
 
 }
+
+//SELECT DISTINCT on ("command"), "uuid", "created" from commands
+//where "user_id" in (select "id" from users where "token" = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJJZCI6Im5pY')
+//desc limit 1;
