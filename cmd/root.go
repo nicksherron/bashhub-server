@@ -44,7 +44,7 @@ func appDir() string {
 		log.Fatal(err)
 	}
 
-	ch := filepath.Join(cfgDir, ".bashhub-server")
+	ch := filepath.Join(cfgDir, "bashhub-server")
 	err = os.MkdirAll(ch, 0755)
 	if err != nil {
 		log.Fatal(err)
