@@ -152,10 +152,8 @@ func Run() {
 		command.Limit = 100
 		if c.Query("limit") != "" {
 			if num, err := strconv.Atoi(c.Query("limit")); err != nil {
-				fmt.Println("100")
 				command.Limit = 100
 			}else {
-				fmt.Println("num")
 				command.Limit = num
 			}
 		}

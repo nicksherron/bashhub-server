@@ -139,10 +139,6 @@ func (cmd Command) commandInsert() int64 {
 //}
 
 func (cmd Command) commandGet() []Query {
-	fmt.Println(cmd.Query)
-	fmt.Println(cmd.Limit)
-	fmt.Println(cmd.Unique)
-	fmt.Println(cmd.Path)
 	var results []Query
 	var rows *sql.Rows
 	var err error
@@ -269,7 +265,6 @@ func (cmd Command) commandGet() []Query {
 		}
 		results = append(results, result)
 	}
-	fmt.Println(results)
 	return results
 
 }
