@@ -1,26 +1,24 @@
 package internal
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
-	jwt_lib "github.com/dgrijalva/jwt-go"
+	"github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
 )
 
 type User struct {
-	ID               uint    `gorm:"primary_key"`
+	ID               uint    `form:"id" json:"id" xml:"id" gorm:"primary_key"`
 	Username         string  `form:"Username" json:"Username" xml:"Username"  gorm:"type:varchar(200);unique_index"`
 	Email            string  `form:"email" json:"email" xml:"email"`
 	Password         string  `form:"password" json:"password" xml:"password"`
-	Mac              *string `form:"mac" json:"mac" xml:"mac"`
+	Mac              *string `gorm:"-" form:"mac" json:"mac" xml:"mac"`
 	RegistrationCode *string `form:"registrationCode" json:"registrationCode" xml:"registrationCode"`
-	Token            string
+	SystemName       string `gorm:"-"  json:"systemName" `
 }
 
 type Query struct {
@@ -48,7 +46,6 @@ type Command struct {
 	ExitStatus       int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
 	User             User   `gorm:"association_foreignkey:ID"`
 	UserId           uint
-	Token            string `gorm:"-"`
 	Limit            int    `gorm:"-"`
 	Unique           bool   `gorm:"-"`
 	Query            string `gorm:"-"`
@@ -60,37 +57,89 @@ type System struct {
 	ID            uint `form:"id" json:"id" xml:"id" gorm:"primary_key"`
 	Created       int64
 	Updated       int64
-	Mac           string  `form:"mac" json:"mac" xml:"mac"`
+	Mac           *string `form:"mac" json:"mac" xml:"mac"`
 	Hostname      *string `form:"hostname" json:"hostname" xml:"hostname"`
 	Name          *string `form:"name" json:"name" xml:"name"`
 	ClientVersion *string `form:"clientVersion" json:"clientVersion" xml:"clientVersion"`
 	User          User    `gorm:"association_foreignkey:ID"`
 	UserId        uint    `form:"userId" json:"userId" xml:"userId"`
-	Token         string  `gorm:"-"`
 }
 
-func auth() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var user User
-		err := func() error {
-			user.Token = strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
-			if user.tokenExists() {
-				return nil
-			} else {
-				return fmt.Errorf("token doesn't exist")
-			}
-		}()
-		if err != nil {
-			c.AbortWithError(401, err)
-		}
-	}
-}
+var (
+	Addr string
+)
+
+//TODO: Figure out a better way to do this.
+const secret = "bashub-server-secret"
 
 func Run() {
 
 	DbInit()
-
 	r := gin.Default()
+	// the jwt middleware
+	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+		Realm:       "bashhub-server zone",
+		Key:         []byte(secret),
+		Timeout:     1000 * time.Hour,
+		MaxRefresh:  1000 * time.Hour,
+		IdentityKey: "username",
+		LoginResponse: func(c *gin.Context, code int, token string, expire time.Time) {
+			c.JSON(http.StatusOK, gin.H{
+				"accessToken": token,
+			})
+		},
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
+			if v, ok := data.(*User); ok {
+				return jwt.MapClaims{
+					"username":   v.Username,
+					"systemName": v.SystemName,
+				}
+			}
+			return jwt.MapClaims{}
+		},
+		IdentityHandler: func(c *gin.Context) interface{} {
+			claims := jwt.ExtractClaims(c)
+			return &User{
+				Username:   claims["username"].(string),
+				SystemName: claims["systemName"].(string),
+			}
+		},
+		Authenticator: func(c *gin.Context) (interface{}, error) {
+			var user User
+
+			if err := c.ShouldBind(&user); err != nil {
+				return "", jwt.ErrMissingLoginValues
+			}
+			if user.userExists() {
+				return &User{
+					Username:   user.Username,
+					SystemName: user.userGetSystemName(),
+				}, nil
+			}
+			fmt.Println("failed")
+
+			return nil, jwt.ErrFailedAuthentication
+		},
+		Authorizator: func(data interface{}, c *gin.Context) bool {
+			if v, ok := data.(*User); ok && v.usernameExists() {
+				return true
+			}
+			return false
+		},
+		Unauthorized: func(c *gin.Context, code int, message string) {
+			c.JSON(code, gin.H{
+				"code":    code,
+				"message": message,
+			})
+		},
+		TokenLookup:   "header: Authorization, query: token, cookie: jwt",
+		TokenHeadName: "Bearer",
+		TimeFunc:      time.Now,
+	})
+
+	if err != nil {
+		log.Fatal("JWT Error:" + err.Error())
+	}
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -98,36 +147,7 @@ func Run() {
 		})
 	})
 
-	r.POST("/api/v1/login", func(c *gin.Context) {
-		var user User
-		if err := c.ShouldBindJSON(&user); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		user.Password = fmt.Sprintf("%v", sha256.Sum256([]byte(user.Password)))
-
-		if !user.userExists() {
-			c.String(401, "Bad credentials")
-			return
-		}
-
-		token := jwt_lib.New(jwt_lib.GetSigningMethod("HS256"))
-
-		token.Claims = jwt_lib.MapClaims{
-			"Id":  user.Username,
-			"exp": time.Now().Add(time.Hour * 20000).Unix(),
-		}
-		// Sign and get the complete encoded token as a string
-		tokenString, err := token.SignedString([]byte(user.Password))
-		if err != nil {
-			c.JSON(500, gin.H{"message": "Could not generate token"})
-		}
-		user.Token = tokenString
-		user.updateToken()
-
-		c.JSON(200, gin.H{"accessToken": tokenString})
-
-	})
+	r.POST("/api/v1/login", authMiddleware.LoginHandler)
 
 	r.POST("/api/v1/user", func(c *gin.Context) {
 		var user User
@@ -139,23 +159,33 @@ func Run() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "email required"})
 			return
 		}
+		if user.usernameExists() {
+			c.String(409, "Username already taken")
+			return
+		}
+		if user.emailExists() {
+			c.String(409, "This email address is already registered.")
+			return
+		}
 
-		user.Password = fmt.Sprintf("%v", sha256.Sum256([]byte(user.Password)))
-
+		user.Password = hashAndSalt(user.Password)
 		user.userCreate()
 
 	})
 
-	r.Use(auth())
+	r.Use(authMiddleware.MiddlewareFunc())
 
 	r.GET("/api/v1/command/search", func(c *gin.Context) {
 		var command Command
-		command.Token = strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+		var user User
+		claims := jwt.ExtractClaims(c)
+		user.Username = claims["username"].(string)
+		command.User.ID = user.userGetId()
 		command.Limit = 100
 		if c.Query("limit") != "" {
 			if num, err := strconv.Atoi(c.Query("limit")); err != nil {
 				command.Limit = 100
-			}else {
+			} else {
 				command.Limit = num
 			}
 		}
@@ -182,32 +212,42 @@ func Run() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		command.Token = strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+		var user User
+		claims := jwt.ExtractClaims(c)
+		user.Username = claims["username"].(string)
+		command.User.ID = user.userGetId()
 		command.commandInsert()
 	})
 
 	r.POST("/api/v1/system", func(c *gin.Context) {
 		var system System
+		var user User
 		err := c.Bind(&system)
 		if err != nil {
 			log.Fatal(err)
 		}
-		system.Token = strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+
+		claims := jwt.ExtractClaims(c)
+		user.Username = claims["username"].(string)
+		system.User.ID = user.userGetId()
+
 		system.systemInsert()
 		c.AbortWithStatus(201)
 	})
 
 	r.GET("/api/v1/system", func(c *gin.Context) {
 		var system System
-		system.Token = strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
-		system.Mac = c.Query("mac")
-		if system.Mac == "" {
+		var user User
+		claims := jwt.ExtractClaims(c)
+		mac := c.Query("mac")
+		if mac == "" {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
-
 		}
-		result, err := system.systemGet()
-		if err != nil {
+		user.Username = claims["username"].(string)
+		system.User.ID = user.userGetId()
+		result := system.systemGet()
+		if len(result.Mac) == 0 {
 			c.AbortWithStatus(404)
 			return
 		}
@@ -215,5 +255,5 @@ func Run() {
 
 	})
 
-	r.Run()
+	r.Run(Addr)
 }
