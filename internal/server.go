@@ -18,7 +18,7 @@ type User struct {
 	Password         string  `form:"password" json:"password" xml:"password"`
 	Mac              *string `gorm:"-" form:"mac" json:"mac" xml:"mac"`
 	RegistrationCode *string `form:"registrationCode" json:"registrationCode" xml:"registrationCode"`
-	SystemName       string `gorm:"-"  json:"systemName" `
+	SystemName       string  `gorm:"-"  json:"systemName" `
 }
 
 type Query struct {
@@ -43,6 +43,7 @@ type Command struct {
 	Command          string `form:"command" json:"command" xml:"command"`
 	Created          int64  `form:"created" json:"created" xml:"created"`
 	Path             string `form:"path" json:"path" xml:"path"`
+	SystemName       string `form:"systemName" json:"systemName" xml:"systemName"`
 	ExitStatus       int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
 	User             User   `gorm:"association_foreignkey:ID"`
 	UserId           uint
@@ -196,6 +197,7 @@ func Run() {
 		}
 		command.Path = c.Query("path")
 		command.Query = c.Query("query")
+		command.SystemName = c.Query("systemName")
 
 		result := command.commandGet()
 		if len(result) == 0 {
@@ -216,6 +218,7 @@ func Run() {
 		claims := jwt.ExtractClaims(c)
 		user.Username = claims["username"].(string)
 		command.User.ID = user.userGetId()
+		command.SystemName = claims["systemName"].(string)
 		command.commandInsert()
 	})
 
