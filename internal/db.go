@@ -122,9 +122,9 @@ func (user User) tokenExists() bool {
 }
 
 func (cmd Command) commandInsert() int64 {
-	res, err := DB.Exec(`INSERT INTO commands("uuid", "command", "created", "path", "user_id")
- 							 VALUES ($1,$2,$3,$4,(select "id" FROM users WHERE "token" = $5))`,
-		cmd.Uuid, cmd.Command, cmd.Created, cmd.Path, cmd.Token)
+	res, err := DB.Exec(`INSERT INTO commands("process_id","process_start_time","exit_status","uuid", "command", "created", "path", "user_id")
+ 							 VALUES ($1,$2,$3,$4,$5,$6,$7,(select "id" FROM users WHERE "token" = $8))`,
+		cmd.ProcessId, cmd.ProcessStartTime, cmd.ExitStatus, cmd.Uuid, cmd.Command, cmd.Created, cmd.Path, cmd.Token)
 	if err != nil {
 		log.Fatal(err)
 	}
