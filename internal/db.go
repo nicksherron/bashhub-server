@@ -148,7 +148,10 @@ func (cmd Command) commandGet() []Query {
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
 										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
-										   	AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "path" = $3 AND "command" ~ $4
+										   	AND ("exit_status" = 0 OR "exit_status" = 130) 
+										   	AND "command" not like 'bh%'  
+										   	AND "path" = $3 
+										   	AND "command" ~ $4
 										    ) c
 										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Path, cmd.Query)
 
@@ -156,7 +159,10 @@ func (cmd Command) commandGet() []Query {
 				rows, err = DB.Query(`SELECT "command", "uuid", "created"
 										    FROM commands
 										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
-										   	AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "path" = $3 AND "command" ~ $4
+										   	AND ("exit_status" = 0 OR "exit_status" = 130) 
+										   	AND "command" not like 'bh%'  
+										   	AND "path" = $3 
+										   	AND "command" ~ $4
 											ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Path, cmd.Query)
 
 			} else if cmd.Path != "" && cmd.Unique {
@@ -164,7 +170,9 @@ func (cmd Command) commandGet() []Query {
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
 										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
-										   	AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "path" = $3
+										   	AND ("exit_status" = 0 OR "exit_status" = 130) 
+										   	AND "command" not like 'bh%'  
+										   	AND "path" = $3
 										    ) c
 										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Path)
 
@@ -173,7 +181,9 @@ func (cmd Command) commandGet() []Query {
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
 										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
-										   	AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "command" ~ $3
+										   	AND ("exit_status" = 0 OR "exit_status" = 130) 
+										   	AND "command" not like 'bh%'  
+										   	AND "command" ~ $3
 										    ) c
 										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Query)
 
@@ -181,7 +191,9 @@ func (cmd Command) commandGet() []Query {
 				rows, err = DB.Query(`SELECT "command", "uuid", "created"
 										    FROM commands
 										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
-										   	AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "command" ~ $3
+										   	AND ("exit_status" = 0 OR "exit_status" = 130) 
+										   	AND "command" not like 'bh%'  
+										   	AND "command" ~ $3
 										ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit, cmd.Query)
 
 			} else {
@@ -189,46 +201,63 @@ func (cmd Command) commandGet() []Query {
 				rows, err = DB.Query(`SELECT * FROM  ( 
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
-										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1) 
+										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
+										   	AND ("exit_status" = 0 OR "exit_status" = 130) 
+										    AND "command" not like 'bh%'   
 										    ) c
-										    AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  
 									  ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit)
 			}
 		} else {
 			// sqlite
 			if cmd.Path != "" && cmd.Query != "" && cmd.Unique {
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
-				WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v')
-					AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "path" = '%v' AND "command" regexp '%v'
-					GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`, cmd.Token, cmd.Limit, cmd.Path, cmd.Query)
-
+                                     WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v')
+								     AND ("exit_status" = 0 OR "exit_status" = 130) 
+								     AND "command" not like '%v'  
+								     AND "path" = '%v' 
+								     AND "command" regexp '%v'
+								     GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`,
+								     cmd.Token, "bh%", cmd.Path, cmd.Query, cmd.Limit)
 				rows, err = DB.Query(query)
 			} else if cmd.Path != "" && cmd.Query != "" {
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
 									 WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v') 
-									 AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "path" = %v' AND "command" regexp %v'
-									 ORDER  BY  "created" DESC limit '%v'`, cmd.Token, cmd.Path, cmd.Query, cmd.Limit)
+									 AND ("exit_status" = 0 OR "exit_status" = 130) 
+					                 AND "command" not like '%v'  
+					                 AND "path" = %v' 
+					                 AND "command" regexp %v'
+									 ORDER  BY  "created" DESC limit '%v'`,
+									 cmd.Token, "bh%", cmd.Path, cmd.Query, cmd.Limit)
 
 				rows, err = DB.Query(query)
 
 			} else if cmd.Path != "" && cmd.Unique {
 				rows, err = DB.Query(`SELECT "command",  "uuid", "created" FROM commands
-									 WHERE "user_id" IN (select "id" FROM users WHERE "token" = $1) 
-									 AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "path" = $3
-									 GROUP BY "command" ORDER  BY  "created" DESC limit $2`, cmd.Token, cmd.Limit, cmd.Path)
+									  WHERE "user_id" IN (select "id" FROM users WHERE "token" = $1) 
+									  AND ("exit_status" = 0 OR "exit_status" = 130) 
+									  AND "command" not like 'bh%'  
+									  AND "path" = $2
+									  GROUP BY "command" ORDER  BY  "created" DESC limit $3`,
+									  cmd.Token, cmd.Path, cmd.Limit)
 
 			} else if cmd.Query != "" && cmd.Unique {
 				query := fmt.Sprintf(`SELECT "command", "uuid", "created" FROM commands
-				WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v') 
-				AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "command" regexp '%v'  
-				GROUP BY "command" ORDER  BY "created" DESC limit '%v'`, cmd.Token, cmd.Query, cmd.Limit)
+								     WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v') 
+								     AND ("exit_status" = 0 OR "exit_status" = 130) 
+                				     AND "command" not like '%v'  
+                				     AND "command" regexp '%v'  
+								     GROUP BY "command" ORDER  BY "created" DESC limit '%v'`,
+								     cmd.Token, "bh%", cmd.Query, cmd.Limit)
 				rows, err = DB.Query(query)
 
 			} else if cmd.Query != "" {
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
 									 WHERE "user_id" IN (select "id" FROM users WHERE "token" = '%v') 
-									 AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  AND "command" regexp'%v'
-									 ORDER  BY  "created" DESC limit '%v'`, cmd.Token, cmd.Query, cmd.Limit)
+									 AND ("exit_status" = 0 OR "exit_status" = 130) 
+									 AND "command" not like '%v'  
+									 AND "command" regexp'%v'
+									 ORDER  BY  "created" DESC limit '%v'`,
+									 cmd.Token, "bh%", cmd.Query, cmd.Limit)
 				rows, err = DB.Query(query)
 
 			} else {
@@ -236,7 +265,8 @@ func (cmd Command) commandGet() []Query {
 				rows, err = DB.Query(`SELECT "command", "uuid", "created"
 										    FROM commands
 										   	WHERE "user_id" IN (SELECT "id" FROM users WHERE "token" = $1)
-										   	AND ("exit_status" = 0 OR "exit_status" = 130) AND "command" not like 'bh%'  
+										   	AND ("exit_status" = 0 OR "exit_status" = 130) 
+										   	AND "command" not like 'bh%'  
 										GROUP BY "command"  ORDER BY "created" DESC limit $2;`, cmd.Token, cmd.Limit)
 			}
 		}
