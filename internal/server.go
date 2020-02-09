@@ -145,7 +145,9 @@ func Run() {
 		user.userCreate()
 
 	})
+
 	r.Use(auth())
+
 	r.GET("/api/v1/command/search", func(c *gin.Context) {
 		var command Command
 		command.Token = strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
@@ -212,6 +214,6 @@ func Run() {
 		c.IndentedJSON(http.StatusOK, result)
 
 	})
-	r.Run()
 
+	r.Run()
 }
