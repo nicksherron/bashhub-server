@@ -275,6 +275,9 @@ func Run() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		if command.ExitStatus != 0 && command.ExitStatus != 130 {
+			return
+		}
 		var user User
 		claims := jwt.ExtractClaims(c)
 		user.Username = claims["username"].(string)
