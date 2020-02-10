@@ -28,6 +28,11 @@ $ brew install bashhub-server/latest/bashhub-server
 ```
 $ docker pull nicksherron/bashhub-server
 ```
+#### Go
+go modules are required 
+```
+GO111MODULE=on go get -u github.com/nicksherron/bashhub-server
+```
 #### Releases 
 Binaries for various os and architectures can be found in [releases](https://github.com/nicksherron/bashhub-server/releases).
 If your system is not listed just submit a issue requesting your os and architecture.

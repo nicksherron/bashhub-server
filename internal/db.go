@@ -205,7 +205,7 @@ func (cmd Command) commandInsert() int64 {
 	}
 	return inserted
 }
-
+//TODO: make this less complicated. It's the epitome of a cluster fuck.
 func (cmd Command) commandGet() []Query {
 	var results []Query
 	var rows *sql.Rows
