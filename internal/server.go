@@ -321,6 +321,7 @@ func Run() {
 
 	Addr = strings.ReplaceAll(Addr, "http://", "")
 	err = r.Run(Addr)
+	
 	if err != nil {
 		fmt.Println("Error: \t", err)
 	}
