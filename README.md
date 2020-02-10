@@ -51,7 +51,7 @@ Flags:
 Use " [command] --help" for more information about a command.
 
 ```
-
+### Running
 Just run the server 
 
 ```shell script
@@ -65,4 +65,9 @@ docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server
 ```
 Then add ```export BH_HOST=localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
 
-Thats it!
+Thats it! Restart your shell with `$SHELL` then re-configure bashhub-client to use your new
+server by re-running ```bashhub setup``` .
+
+### Setting DB
+
+### Using Regex

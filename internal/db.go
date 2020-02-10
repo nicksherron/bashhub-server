@@ -27,8 +27,11 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
+	// db driver are called by gorm
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	// db driver are called by gorm
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	// db driver are called by database/sql
 	_ "github.com/lib/pq"
 	"github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
@@ -47,6 +50,7 @@ func dbInit() {
 	var err error
 	if strings.HasPrefix(DbPath, "postgres://") {
 		// postgres
+
 		db, err = sql.Open("postgres", DbPath)
 		if err != nil {
 			log.Fatal(err)
