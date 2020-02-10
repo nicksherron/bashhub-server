@@ -13,7 +13,7 @@ added features like regex search.
 - Written in Go so it's fast and is actively maintained
 
 ## Why? 
-I love the idea behing bashhub. Having my shell history centralized and queryable from various systems whether it 
+I love the idea behind bashhub. Having my shell history centralized and queryable from various systems whether it 
 be  my home computer or from an ssh session on a server is great. BUT not if that means sending my shell history to a  third-party, 
 regardless of their intentions or trustworthiness, so bashhub-server was created.
 
@@ -29,7 +29,7 @@ $ brew install bashhub-server/latest/bashhub-server
 $ docker pull nicksherron/bashhub-server
 ```
 #### Releases 
-Static binaries for various os and architectures can be found in [releases](https://github.com/nicksherron/bashhub-server/releases).
+Binaries for various os and architectures can be found in [releases](https://github.com/nicksherron/bashhub-server/releases).
 If your system is not listed just submit a issue requesting your os and architecture.
 
 ## Usage 
