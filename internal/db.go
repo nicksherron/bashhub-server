@@ -134,10 +134,10 @@ func (user User) userExists() bool {
 	return false
 }
 
-func (user User) userGetId() uint {
+func userGetId(username string) uint {
 	var id uint
 	err := db.QueryRow("SELECT id FROM users WHERE username = $1",
-		user.Username).Scan(&id)
+		username).Scan(&id)
 	if err != nil && err != sql.ErrNoRows {
 		log.Fatalf("error checking if row exists %v", err)
 	}
@@ -502,5 +502,35 @@ func (sys System) systemGet() System {
 		return System{}
 	}
 	return row
+
+}
+
+func (status Status) statusGet() (Status, error) {
+	var err error
+	if connectionLimit != 1 {
+		err = db.QueryRow(`select
+      									( select count(*) from commands where user_id = $1) as totalCommands,
+      									( select count(distinct process_id) from commands where user_id = $1) as totalSessions,
+      									( select count(distinct system_name) from commands where user_id = $1) as totalSystems,
+      									( select count (*) from commands where to_timestamp(cast(created/1000 as bigint))::date = now()::date and  user_id = $1) as totalCommandsToday,
+      									( select count(*) from commands where process_id = $2) as sessionTotalCommands`,
+			status.User.ID, status.ProcessID).Scan(
+			&status.TotalCommands, &status.TotalSessions, &status.TotalSystems,
+			&status.TotalCommandsToday, &status.SessionTotalCommands)
+	} else {
+		err = db.QueryRow(`select
+      									( select count(*) from commands where user_id = $1) as totalCommands,
+      									( select count(distinct process_id) from commands where user_id = $1) as totalSessions,
+      									( select count(distinct system_name) from commands where user_id = $1) as totalSystems,
+      									( select count(*) from commands where date(created/1000, 'unixepoch') = date('now') and  user_id = $1) as totalCommandsToday,
+      									( select count(*) from commands where process_id = $2) as sessionTotalCommands`,
+			status.User.ID, status.ProcessID).Scan(
+			&status.TotalCommands, &status.TotalSessions, &status.TotalSystems,
+			&status.TotalCommandsToday, &status.SessionTotalCommands)
+	}
+	if err != nil {
+		return Status{}, err
+	}
+	return status, err
 
 }

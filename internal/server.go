@@ -81,6 +81,19 @@ type System struct {
 	UserId        uint    `json:"userId"`
 }
 
+type Status struct {
+	User                 `json:"-"`
+	ProcessID            int    `json:"-"`
+	Username             string `json:"username"`
+	TotalCommands        int    `json:"totalCommands"`
+	TotalSessions        int    `json:"totalSessions"`
+	TotalSystems         int    `json:"totalSystems"`
+	TotalCommandsToday   int    `json:"totalCommandsToday"`
+	SessionName          string `json:"sessionName"`
+	SessionStartTime     int64  `json:"sessionStartTime"`
+	SessionTotalCommands int    `json:"sessionTotalCommands"`
+}
+
 var (
 	// Addr is the listen and server address for our server (gin)
 	Addr string
@@ -232,8 +245,8 @@ func Run() {
 		var command Command
 		var user User
 		claims := jwt.ExtractClaims(c)
-		user.Username = claims["username"].(string)
-		command.User.ID = user.userGetId()
+		username := claims["username"].(string)
+		command.User.ID = userGetId(username)
 
 		if c.Param("path") == "search" {
 			command.Limit = 100
@@ -261,7 +274,6 @@ func Run() {
 			c.IndentedJSON(http.StatusOK, result)
 		} else {
 			command.Uuid = c.Param("path")
-			command.User.ID = user.userGetId()
 			result := command.commandGetUUID()
 			result.Username = user.Username
 			c.IndentedJSON(http.StatusOK, result)
@@ -278,35 +290,31 @@ func Run() {
 		if command.ExitStatus != 0 && command.ExitStatus != 130 {
 			return
 		}
-		var user User
 		claims := jwt.ExtractClaims(c)
-		user.Username = claims["username"].(string)
-		command.User.ID = user.userGetId()
+		username := claims["username"].(string)
+		command.User.ID = userGetId(username)
 		command.SystemName = claims["systemName"].(string)
 		command.commandInsert()
 	})
 
 	r.DELETE("/api/v1/command/:uuid", func(c *gin.Context) {
 		var command Command
-		var user User
 		claims := jwt.ExtractClaims(c)
-		user.Username = claims["username"].(string)
-		command.User.ID = user.userGetId()
+		username := claims["username"].(string)
+		command.User.ID = userGetId(username)
 		command.Uuid = c.Param("uuid")
 		command.commandDelete()
 	})
 
 	r.POST("/api/v1/system", func(c *gin.Context) {
 		var system System
-		var user User
 		err := c.Bind(&system)
 		if err != nil {
 			log.Fatal(err)
 		}
-
 		claims := jwt.ExtractClaims(c)
-		user.Username = claims["username"].(string)
-		system.User.ID = user.userGetId()
+		username := claims["username"].(string)
+		system.User.ID = userGetId(username)
 
 		system.systemInsert()
 		c.AbortWithStatus(201)
@@ -314,15 +322,14 @@ func Run() {
 
 	r.GET("/api/v1/system", func(c *gin.Context) {
 		var system System
-		var user User
 		claims := jwt.ExtractClaims(c)
 		mac := c.Query("mac")
 		if mac == "" {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
-		user.Username = claims["username"].(string)
-		system.User.ID = user.userGetId()
+		username := claims["username"].(string)
+		system.User.ID = userGetId(username)
 		result := system.systemGet()
 		if len(result.Mac) == 0 {
 			c.AbortWithStatus(404)
@@ -332,9 +339,40 @@ func Run() {
 
 	})
 
+	r.GET("/api/v1/client-view/status", func(c *gin.Context) {
+		var status Status
+		claims := jwt.ExtractClaims(c)
+		username := claims["username"].(string)
+		status.Username = username
+		status.User.ID = userGetId(username)
+		status.SessionName = c.Query("processId")
+		t, err := strconv.Atoi(c.Query("startTime"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		status.SessionStartTime = int64(t)
+
+		pid, err := strconv.Atoi(c.Query("processId"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		status.ProcessID = pid
+
+		result, err := status.statusGet()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.IndentedJSON(http.StatusOK, result)
+
+	})
+
 	Addr = strings.ReplaceAll(Addr, "http://", "")
 	err = r.Run(Addr)
-	
+
 	if err != nil {
 		fmt.Println("Error: \t", err)
 	}
