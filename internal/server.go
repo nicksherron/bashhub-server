@@ -22,13 +22,13 @@ type User struct {
 }
 
 type Query struct {
-	Uuid    string `form:"uuid" json:"uuid" xml:"uuid"`
-	Command string `form:"command" json:"command" xml:"command"`
-	Created int64  `form:"created" json:"created" xml:"created"`
-	Path    string `form:"path" json:"path" xml:"path"`
-	ExitStatus       int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
-	Username         string  `form:"username" json:"username" xml:"username"`
-	SystemName       string  `gorm:"-"  json:"systemName" `
+	Uuid       string `form:"uuid" json:"uuid" xml:"uuid"`
+	Command    string `form:"command" json:"command" xml:"command"`
+	Created    int64  `form:"created" json:"created" xml:"created"`
+	Path       string `form:"path" json:"path" xml:"path"`
+	ExitStatus int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
+	Username   string `form:"username" json:"username" xml:"username"`
+	SystemName string `gorm:"-"  json:"systemName" `
 }
 type SystemQuery struct {
 	ID            uint `form:"id" json:"id" xml:"id" gorm:"primary_key"`
@@ -180,52 +180,47 @@ func Run() {
 
 	r.Use(authMiddleware.MiddlewareFunc())
 
-	r.GET("/api/v1/command/search", func(c *gin.Context) {
+	r.GET("/api/v1/command/:path", func(c *gin.Context) {
 		var command Command
 		var user User
 		claims := jwt.ExtractClaims(c)
 		user.Username = claims["username"].(string)
 		command.User.ID = user.userGetId()
-		command.Limit = 100
-		if c.Query("limit") != "" {
-			if num, err := strconv.Atoi(c.Query("limit")); err != nil {
-				command.Limit = 100
-			} else {
-				command.Limit = num
+
+		if c.Param("path") == "search" {
+			command.Limit = 100
+			if c.Query("limit") != "" {
+				if num, err := strconv.Atoi(c.Query("limit")); err != nil {
+					command.Limit = 100
+				} else {
+					command.Limit = num
+				}
 			}
-		}
-		if c.Query("unique") == "true" {
-			command.Unique = true
+			if c.Query("unique") == "true" {
+				command.Unique = true
+			} else {
+				command.Unique = false
+			}
+			command.Path = c.Query("path")
+			command.Query = c.Query("query")
+			command.SystemName = c.Query("systemName")
+
+			result := command.commandGet()
+			if len(result) == 0 {
+				c.JSON(http.StatusOK, gin.H{})
+				return
+			}
+			c.IndentedJSON(http.StatusOK, result)
 		} else {
-			command.Unique = false
+			command.Uuid = c.Param("path")
+			command.User.ID = user.userGetId()
+			result := command.commandGetUUID()
+			result.Username = user.Username
+			c.IndentedJSON(http.StatusOK, result)
 		}
-		command.Path = c.Query("path")
-		command.Query = c.Query("query")
-		command.SystemName = c.Query("systemName")
-
-		result := command.commandGet()
-		if len(result) == 0 {
-			c.JSON(http.StatusOK, gin.H{})
-			return
-		}
-		c.IndentedJSON(http.StatusOK, result)
 
 	})
-
-	r.GET("/api/v1/command/:uuid", func(c *gin.Context) {
-		var command Command
-		command.Uuid = c.Param("uuid")
-		var user User
-		claims := jwt.ExtractClaims(c)
-		user.Username = claims["username"].(string)
-		command.User.ID = user.userGetId()
-		result := command.commandGetUUID()
-		result.Username =  user.Username
-		
-		c.IndentedJSON(http.StatusOK, result)
-
-	})
-
+	
 	r.POST("/api/v1/command", func(c *gin.Context) {
 		var command Command
 		if err := c.ShouldBindJSON(&command); err != nil {
