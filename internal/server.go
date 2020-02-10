@@ -286,6 +286,16 @@ func Run() {
 		command.commandInsert()
 	})
 
+	r.DELETE("/api/v1/command/:uuid", func(c *gin.Context) {
+		var command Command
+		var user User
+		claims := jwt.ExtractClaims(c)
+		user.Username = claims["username"].(string)
+		command.User.ID = user.userGetId()
+		command.Uuid = c.Param("uuid")
+		command.commandDelete()
+	})
+
 	r.POST("/api/v1/system", func(c *gin.Context) {
 		var system System
 		var user User

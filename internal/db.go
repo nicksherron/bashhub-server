@@ -98,6 +98,7 @@ func dbInit() {
 	gormdb.Model(&User{}).AddIndex("idx_user", "username")
 	gormdb.Model(&System{}).AddIndex("idx_mac", "mac")
 	gormdb.Model(&Command{}).AddIndex("idx_user_command_created", "user_id, created, command")
+	gormdb.Model(&Command{}).AddIndex("idx_user_uuid", "user_id, uuid")
 	// Just need gorm for migration and index creation.
 	gormdb.Close()
 }
@@ -205,6 +206,7 @@ func (cmd Command) commandInsert() int64 {
 	}
 	return inserted
 }
+
 //TODO: make this less complicated. It's the epitome of a cluster fuck.
 func (cmd Command) commandGet() []Query {
 	var results []Query
@@ -456,6 +458,21 @@ func (cmd Command) commandGetUUID() Query {
 		log.Println(err)
 	}
 	return result
+}
+
+func (cmd Command) commandDelete() int64 {
+	res, err := db.Exec(`DELETE FROM commands
+						  WHERE "user_id" = $1
+						  AND "uuid" = $2 `, cmd.User.ID, cmd.Uuid)
+	if err != nil {
+		log.Fatal(err)
+	}
+	inserted, err := res.RowsAffected()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return inserted
+
 }
 
 func (sys System) systemInsert() int64 {
