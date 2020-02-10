@@ -1,7 +1,7 @@
 # bashhub-server
 [![Go Report Card](https://goreportcard.com/badge/github.com/nicksherron/bashhub-server)](https://goreportcard.com/report/github.com/nicksherron/bashhub-server)
 
-bashub-server is a open-source server for  [bashhub-client](https://github.com/rcaloras/bashhub-client) with some
+bashhub-server is a open-source server for  [bashhub-client](https://github.com/rcaloras/bashhub-client) with some
 added features like regex search.
  
 ## Features 
@@ -21,19 +21,19 @@ regardless of their intentions or trustworthiness, so bashhub-server was created
 
 #### Homebrew or Linuxbrew
 ```shell script
-brew install bashhub-server/latest/bashhub-server
+$ brew install bashhub-server/latest/bashhub-server
 ```
 #### Docker 
 ```shell script
-docker pull nicksherron/bashhub-server
+$ docker pull nicksherron/bashhub-server
 ```
 #### Releases 
 Static binaries for various os and architectures can be found in [releases](https://github.com/nicksherron/bashhub-server/releases).
 If your system is not listed just add an issue requesting your os and architecture.
 
 ## Usage 
-```shell script
-bashhub-server --help
+```
+$ bashhub-server --help
 
 Usage:
    [flags]
@@ -55,21 +55,87 @@ Use " [command] --help" for more information about a command.
 ### Running
 Just run the server 
 
-```shell script
-bashhub-server
+```
+$ bashhub-server
+
+ _               _     _           _
+| |             | |   | |         | |		version: v0.1.1
+| |__   __ _ ___| |__ | |__  _   _| |		address: 0.0.0.0:8080
+| '_ \ / _' / __| '_ \| '_ \| | | | '_ \
+| |_) | (_| \__ \ | | | | | | |_| | |_) |
+|_.__/ \__,_|___/_| |_|_| |_|\__,_|_.__/
+ ___  ___ _ ____   _____ _ __
+/ __|/ _ \ '__\ \ / / _ \ '__|
+\__ \  __/ |   \ V /  __/ |
+|___/\___|_|    \_/ \___|_|
+
+
+2020/02/10 03:04:11 Listening and serving HTTP on 0.0.0.0:8080
 ```
 or on docker 
 
 ```shell script
-docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server 
-
+$ docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server 
 ```
 Then add ```export BH_HOST=localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
-
-Thats it! Restart your shell with `$SHELL` then re-configure bashhub-client to use your new
-server by re-running ```bashhub setup``` .
+```
+echo "export BH_HOST=localhost:8080" >> ~/.bashrc
+```
+or 
+```shell script
+$ echo "export BH_HOST=localhost:8080" >> ~/.zshr
+```
+Thats it! Restart your shell and re-run bashhub setup.
+```
+$ $SHELL && bashhub setup
+```
 
 ### Changing default db
+By default the backend db uses sqlite, with the location for each os shown below.
 
+
+| os      | default                                                                          |
+|---------|----------------------------------------------------------------------------------|
+| Unix    | $XDG_CONFIG_HOME/bashhub-server/data.db or  $HOME/.config/bashhub-server/data.db |
+| Darwin  | $HOME/Library/Application Support/bashhub-server/data.db                         |
+| Windows | %AppData%\bashhub-server\data.db                                                 |
+| Plan 9  | $home/lib/bashhub-server/data.db                                                 |
+
+
+To set a different sqlite db file to use, run
+```shell script
+$ bashhub-server --db path/to/file.db
+```
+Postgresql is also supported by bashhub-server. To use postgres specify the postgres uri in the --db flag with the
+following syntax
+```shell script
+$ bashhub-server --db "postgres://user:password@localhost:5432?sslmode=disable"
+```
 
 ### Using Regex
+bashhub-server supports regex queries sent by the bh command (bashhub-client)
+
+Without regex
+```shell script
+$ bh bash
+
+bashhub setup
+docker pull nicksherron/bashhub-server
+bin/bashhub-server version
+untar bashhub-server_v0.1.0_darwin_amd64.tar.gz
+cd bashhub-server_v0.1.0_darwin_amd64
+./bashhub-server version
+make build && bin/bashhub-server
+cd bashhub-server
+brew install bashhub-server/latest/bashhub-server
+bashhub-server version
+bashhub-server --help
+```
+With regex
+```shell script
+$ bh '^bash'
+
+bashhub setup
+bashhub-server version
+bashhub-server --help
+```

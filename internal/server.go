@@ -318,5 +318,8 @@ func Run() {
 
 	})
 
-	r.Run(Addr)
+	err = r.Run(Addr)
+	if err != nil {
+		fmt.Println("Error: \t", err)
+	}
 }
