@@ -44,10 +44,12 @@ Available Commands:
 
 Flags:
   -a, --addr string   Ip and port to listen and serve on. (default "0.0.0.0:8080")
-      --db string     DB location (sqlite or postgres) (default "/Users/nicksherron/Library/Application Support/bashhub-server/data.db")
+      --db string     DB location (sqlite or postgres)
   -h, --help          help for this command
+      --log string    Set filepath for HTTP log. "" logs to stderr.
 
 Use " [command] --help" for more information about a command.
+
 ```
 
 Just run the server 
