@@ -87,8 +87,8 @@ func startupMessage() {
 
 func listenAddr() string {
 	var a string
-	if os.Getenv("BH_URL") != "" {
-		a = os.Getenv("BH_URL")
+	if os.Getenv("BH_SERVER_URL") != "" {
+		a = os.Getenv("BH_SERVER_URL")
 		return a
 	}
 	a = "http://0.0.0.0:8080"
@@ -117,13 +117,12 @@ func appDir() string {
 	return ch
 }
 func checkBhEnv() {
-	addr := strings.ReplaceAll(internal.Addr, "http://", "")
 	bhURL := os.Getenv("BH_URL")
 	if strings.Contains(bhURL, "https://bashhub.com") {
 		msg := fmt.Sprintf(`
-WARNING: BH_URL is to https://bashhub.com on this machine
+WARNING: BH_URL is set to https://bashhub.com on this machine
 If you will be running bashhub-client locally be sure to add
-export BH_URL=%v to your .bashrc or .zshrc`, addr)
+export BH_URL=%v to your .bashrc or .zshrc`, internal.Addr)
 		fmt.Println(msg, "\n")
 	}
 }
