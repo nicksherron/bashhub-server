@@ -29,6 +29,7 @@ type Query struct {
 	ExitStatus int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
 	Username   string `form:"username" json:"username" xml:"username"`
 	SystemName string `gorm:"-"  json:"systemName"`
+	//TODO: implement sessions
 	SessionID string `form:"session_id" json:"session_id" xml:"session_id"`
 }
 type SystemQuery struct {
