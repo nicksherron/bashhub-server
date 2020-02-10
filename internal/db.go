@@ -207,7 +207,6 @@ func (cmd Command) commandInsert() int64 {
 	return inserted
 }
 
-//TODO: make this less complicated. It's the epitome of a cluster fuck.
 func (cmd Command) commandGet() []Query {
 	var results []Query
 	var rows *sql.Rows
@@ -219,8 +218,7 @@ func (cmd Command) commandGet() []Query {
 				rows, err = db.Query(`SELECT * FROM  ( 
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										   	AND "path" = $3 
 										   	AND "system_name" = $4								
 										   	AND "command" ~ $5
@@ -231,8 +229,7 @@ func (cmd Command) commandGet() []Query {
 				rows, err = db.Query(`SELECT * FROM  ( 
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										   	AND "path" = $3 
 										   	AND "command" ~ $4
 										    ) c
@@ -241,8 +238,7 @@ func (cmd Command) commandGet() []Query {
 			} else if cmd.SystemName != "" && cmd.Query != "" {
 				rows, err = db.Query(`SELECT "command", "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										   	AND "system_name" = $3 
 										   	AND "command" ~ $4
 											ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.SystemName, cmd.Query)
@@ -250,8 +246,7 @@ func (cmd Command) commandGet() []Query {
 			} else if cmd.Path != "" && cmd.Query != "" {
 				rows, err = db.Query(`SELECT "command", "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										   	AND "path" = $3 
 										   	AND "command" ~ $4
 											ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Path, cmd.Query)
@@ -260,8 +255,7 @@ func (cmd Command) commandGet() []Query {
 				rows, err = db.Query(`SELECT * FROM  ( 
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										   	AND "system_name" = $3 
 										    ) c
 										ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.SystemName)
@@ -270,8 +264,7 @@ func (cmd Command) commandGet() []Query {
 				rows, err = db.Query(`SELECT * FROM  ( 
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										   	AND "path" = $3
 										    ) c
 										ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Path)
@@ -280,8 +273,7 @@ func (cmd Command) commandGet() []Query {
 				rows, err = db.Query(`SELECT * FROM  ( 
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										   	AND "command" ~ $3
 										    ) c
 										ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Query)
@@ -289,8 +281,7 @@ func (cmd Command) commandGet() []Query {
 			} else if cmd.Query != "" {
 				rows, err = db.Query(`SELECT "command", "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										   	AND "command" ~ $3
 										ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Query)
 
@@ -299,8 +290,7 @@ func (cmd Command) commandGet() []Query {
 				rows, err = db.Query(`SELECT * FROM  ( 
 										    SELECT DISTINCT ON ("command") command, "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'   
+										   	WHERE  "user_id" = $1   
 										    ) c
 									  ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit)
 			}
@@ -309,93 +299,84 @@ func (cmd Command) commandGet() []Query {
 			if cmd.SystemName != "" && cmd.Path != "" && cmd.Query != "" && cmd.Unique {
 				// Have to use fmt.Sprintf to build queries where sqlite regexp function is used because of single quotes. Haven't found any other work around.
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
-                                     WHERE "user_id" =  '%v'
-								     AND "command" not like '%v'  
+                                     WHERE "user_id" =  '%v'  
 								     AND "path" = '%v'
 								     AND "system_name" = '%v'
 								     AND "command" regexp '%v'
 								     GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`,
-					cmd.User.ID, "bh%", cmd.Path, cmd.SystemName, cmd.Query, cmd.Limit)
+					cmd.User.ID, cmd.Path, cmd.SystemName, cmd.Query, cmd.Limit)
 
 				rows, err = db.Query(query)
 
 			} else if cmd.SystemName != "" && cmd.Query != "" && cmd.Unique {
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
-                                     WHERE "user_id" =  '%v'
-								     AND "command" not like '%v'  
+                                     WHERE "user_id" =  '%v'  
 								     AND "system_name" = '%v' 
 								     AND "command" regexp '%v'
 								     GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`,
-					cmd.User.ID, "bh%", cmd.SystemName, cmd.Query, cmd.Limit)
+					cmd.User.ID, cmd.SystemName, cmd.Query, cmd.Limit)
 
 				rows, err = db.Query(query)
 
 			} else if cmd.Path != "" && cmd.Query != "" && cmd.Unique {
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
-                                     WHERE "user_id" =  '%v'
-								     AND "command" not like '%v'  
+                                     WHERE "user_id" =  '%v'  
 								     AND "path" = '%v' 
 								     AND "command" regexp '%v'
 								     GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`,
-					cmd.User.ID, "bh%", cmd.Path, cmd.Query, cmd.Limit)
+					cmd.User.ID, cmd.Path, cmd.Query, cmd.Limit)
 
 				rows, err = db.Query(query)
 
 			} else if cmd.SystemName != "" && cmd.Query != "" {
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
-									 WHERE "user_id" =  '%v' 
-									 AND "command" not like '%v'  
+									 WHERE "user_id" =  '%v'   
 					                 AND "system_name" = %v' 
 					                 AND "command" regexp %v'
 									 ORDER  BY  "created" DESC limit '%v'`,
-					cmd.User.ID, "bh%", cmd.SystemName, cmd.Query, cmd.Limit)
+					cmd.User.ID, cmd.SystemName, cmd.Query, cmd.Limit)
 
 				rows, err = db.Query(query)
 
 			} else if cmd.Path != "" && cmd.Query != "" {
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
-									 WHERE "user_id" =  '%v' 
-									 AND "command" not like '%v'  
+									 WHERE "user_id" =  '%v'   
 					                 AND "path" = %v' 
 					                 AND "command" regexp %v'
 									 ORDER  BY  "created" DESC limit '%v'`,
-					cmd.User.ID, "bh%", cmd.Path, cmd.Query, cmd.Limit)
+					cmd.User.ID, cmd.Path, cmd.Query, cmd.Limit)
 
 				rows, err = db.Query(query)
 
 			} else if cmd.SystemName != "" && cmd.Unique {
 				rows, err = db.Query(`SELECT "command",  "uuid", "created" FROM commands
-									  WHERE  "user_id" = $1 
-									  AND "command" not like 'bh%'  
+									  WHERE  "user_id" = $1   
 									  AND "system_name" = $2
 									  GROUP BY "command" ORDER  BY  "created" DESC limit $3`,
 					cmd.User.ID, cmd.SystemName, cmd.Limit)
 
 			} else if cmd.Path != "" && cmd.Unique {
 				rows, err = db.Query(`SELECT "command",  "uuid", "created" FROM commands
-									  WHERE  "user_id" = $1 
-									  AND "command" not like 'bh%'  
+									  WHERE  "user_id" = $1   
 									  AND "path" = $2
 									  GROUP BY "command" ORDER  BY  "created" DESC limit $3`,
 					cmd.User.ID, cmd.Path, cmd.Limit)
 
 			} else if cmd.Query != "" && cmd.Unique {
 				query := fmt.Sprintf(`SELECT "command", "uuid", "created" FROM commands
-								     WHERE "user_id" =  '%v' 
-								     AND "command" not like '%v'  
+								     WHERE "user_id" =  '%v'   
                 				     AND "command" regexp '%v'  
 								     GROUP BY "command" ORDER  BY "created" DESC limit '%v'`,
-					cmd.User.ID, "bh%", cmd.Query, cmd.Limit)
+					cmd.User.ID, cmd.Query, cmd.Limit)
 
 				rows, err = db.Query(query)
 
 			} else if cmd.Query != "" {
 				query := fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
-									 WHERE "user_id" =  '%v' 
-									 AND "command" not like '%v'  
+									 WHERE "user_id" =  '%v'   
 									 AND "command" regexp'%v'
 									 ORDER  BY  "created" DESC limit '%v'`,
-					cmd.User.ID, "bh%", cmd.Query, cmd.Limit)
+					cmd.User.ID, cmd.Query, cmd.Limit)
 
 				rows, err = db.Query(query)
 
@@ -403,8 +384,7 @@ func (cmd Command) commandGet() []Query {
 				// unique
 				rows, err = db.Query(`SELECT "command", "uuid", "created"
 										    FROM commands
-										   	WHERE  "user_id" = $1
-										   	AND "command" not like 'bh%'  
+										   	WHERE  "user_id" = $1  
 										GROUP BY "command"  ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit)
 			}
 		}
@@ -412,19 +392,16 @@ func (cmd Command) commandGet() []Query {
 		if cmd.Path != "" {
 			rows, err = db.Query(`SELECT "command",  "uuid", "created" FROM commands
 								 WHERE  "user_id" = $1 
-								 AND "path" = $3
-								 AND "command" not like 'bh%'  
+								 AND "path" = $3  
 								 ORDER  BY  "created" DESC limit $2`, cmd.User.ID, cmd.Limit, cmd.Path)
 		} else if cmd.SystemName != "" {
 			rows, err = db.Query(`SELECT "command",  "uuid", "created" FROM commands
 								 WHERE  "user_id" = $1 
-								 AND "system_name" = $3
-								 AND "command" not like 'bh%'  
+								 AND "system_name" = $3  
 								 ORDER  BY  "created" DESC limit $2`, cmd.User.ID, cmd.Limit, cmd.SystemName)
 		} else {
 			rows, err = db.Query(`SELECT "command",  "uuid", "created" FROM commands
-								 WHERE  "user_id" = $1
-								 AND "command" not like 'bh%'  
+								 WHERE  "user_id" = $1  
 								 ORDER  BY  "created" DESC limit $2`, cmd.User.ID, cmd.Limit)
 		}
 
