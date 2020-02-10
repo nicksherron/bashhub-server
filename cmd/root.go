@@ -87,8 +87,8 @@ func startupMessage() {
 
 func listenAddr() string {
 	var a string
-	if os.Getenv("BH_HOST") != "" {
-		a = os.Getenv("BH_HOST")
+	if os.Getenv("BH_URL") != "" {
+		a = os.Getenv("BH_URL")
 		return a
 	}
 	a = "http://0.0.0.0:8080"

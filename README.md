@@ -78,13 +78,13 @@ or on docker
 ```
 $ docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server 
 ```
-Then add ```export BH_HOST=http://localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
+Then add ```export BH_URL=http://localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
 ```
-echo "export BH_HOST=http://localhost:8080" >> ~/.bashrc
+echo "export BH_URL=http://localhost:8080" >> ~/.bashrc
 ```
 or 
 ```
-$ echo "export BH_HOST=http://localhost:8080" >> ~/.zshr
+$ echo "export BH_URL=http://localhost:8080" >> ~/.zshr
 ```
 Thats it! Restart your shell and re-run bashhub setup.
 ```
