@@ -29,7 +29,7 @@ $ docker pull nicksherron/bashhub-server
 ```
 #### Releases 
 Static binaries for various os and architectures can be found in [releases](https://github.com/nicksherron/bashhub-server/releases).
-If your system is not listed just add an issue requesting your os and architecture.
+If your system is not listed just submit a issue requesting your os and architecture.
 
 ## Usage 
 ```
