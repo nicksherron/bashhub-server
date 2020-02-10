@@ -1,8 +1,7 @@
 .PHONY: build build-alpine clean test help default docker-build
 
 BIN_NAME=bashhub-server
-
-VERSION := $(shell grep "const Version " version/version.go | sed -E 's/.*"(.+)"$$/\1/')
+VERSION=$(shell git tag | sort --version-sort -r | head -1)
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 BUILD_DATE=$(shell date '+%Y-%m-%d-%H:%M:%S')
@@ -27,7 +26,7 @@ help:
 build:
 	@echo "building ${BIN_NAME} ${VERSION}"
 	@echo "GOPATH=${GOPATH}"
-	go build  -ldflags "-X github.com/nicksherron/bashhub-server/cmd.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X github.com/nicksherron/bashhub-server/cmd.BuildDate=${BUILD_DATE}" -o bin/${BIN_NAME}
+	go build  -ldflags "-X github.com/nicksherron/bashhub-server/cmd.Version=${VERSION} -X github.com/nicksherron/bashhub-server/cmd.GitCommit=${GIT_COMMIT} -X github.com/nicksherron/bashhub-server/cmd.BuildDate=${BUILD_DATE}" -o bin/${BIN_NAME}
 
 get-deps:
 	dep ensure

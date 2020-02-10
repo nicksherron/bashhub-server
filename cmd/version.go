@@ -25,7 +25,7 @@ import (
 
 // versionCmd represents the version command
 var (
-	Build      string
+	GitCommit      string
 	BuildDate  string
 	Version    string
 	OsArch     = fmt.Sprintf("%s %s", runtime.GOOS, runtime.GOARCH)
@@ -36,7 +36,7 @@ var (
 		Short: "Print the version number and build info",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("Build Date:", BuildDate)
-			fmt.Println("Git Commit:", Build)
+			fmt.Println("Git Commit:", GitCommit)
 			fmt.Println("Version:", Version)
 			fmt.Println("Go Version:", GoVersion)
 			fmt.Println("OS / Arch:", OsArch)
