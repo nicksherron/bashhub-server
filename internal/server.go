@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/appleboy/gin-jwt/v2"
@@ -318,6 +319,7 @@ func Run() {
 
 	})
 
+	Addr = strings.ReplaceAll(Addr, "http://", "")
 	err = r.Run(Addr)
 	if err != nil {
 		fmt.Println("Error: \t", err)

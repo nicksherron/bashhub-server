@@ -91,7 +91,7 @@ func listenAddr() string {
 		a = os.Getenv("BH_HOST")
 		return a
 	}
-	a = "0.0.0.0:8080"
+	a = "http://0.0.0.0:8080"
 	return a
 
 }
