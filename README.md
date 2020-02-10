@@ -8,7 +8,8 @@ added features like regex search.
 
 - Very simple drop in replacement for bashhub.com server and easy to install and get running with existing bashhub-client and bh command.
 - All the benefits of bashhub without having to send your shell history to a third-party
-- Regex search  
+- Regex search
+- Quickly connect any client with  access to your server bashhub-sever address/port.
 - Written in Go so it's fast and is actively maintained
 
 ## Why? 
