@@ -12,45 +12,36 @@ import (
 )
 
 type User struct {
-	ID               uint    `form:"id" json:"id" xml:"id" gorm:"primary_key"`
-	Username         string  `form:"Username" json:"Username" xml:"Username"  gorm:"type:varchar(200);unique_index"`
-	Email            string  `form:"email" json:"email" xml:"email"`
-	Password         string  `form:"password" json:"password" xml:"password"`
-	Mac              *string `gorm:"-" form:"mac" json:"mac" xml:"mac"`
-	RegistrationCode *string `form:"registrationCode" json:"registrationCode" xml:"registrationCode"`
-	SystemName       string  `gorm:"-"  json:"systemName" `
+	ID               uint    `json:"id" gorm:"primary_key"`
+	Username         string  `json:"Username" gorm:"type:varchar(200);unique_index"`
+	Email            string  `json:"email"`
+	Password         string  `json:"password"`
+	Mac              *string `json:"mac" gorm:"-"`
+	RegistrationCode *string `json:"registrationCode"`
+	SystemName       string  `json:"systemName" gorm:"-"`
 }
 
 type Query struct {
-	Uuid       string `form:"uuid" json:"uuid" xml:"uuid"`
-	Command    string `form:"command" json:"command" xml:"command"`
-	Created    int64  `form:"created" json:"created" xml:"created"`
-	Path       string `form:"path" json:"path" xml:"path"`
-	ExitStatus int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
-	Username   string `form:"username" json:"username" xml:"username"`
+	Uuid       string `json:"uuid"`
+	Command    string `json:"command"`
+	Created    int64  `json:"created"`
+	Path       string `json:"path"`
+	ExitStatus int    `json:"exitStatus"`
+	Username   string `json:"username"`
 	SystemName string `gorm:"-"  json:"systemName"`
 	//TODO: implement sessions
-	SessionID string `form:"session_id" json:"session_id" xml:"session_id"`
-}
-type SystemQuery struct {
-	ID            uint `form:"id" json:"id" xml:"id" gorm:"primary_key"`
-	Created       int64
-	Updated       int64
-	Mac           string  `form:"mac" json:"mac" xml:"mac"`
-	Hostname      *string `form:"hostname" json:"hostname" xml:"hostname"`
-	Name          *string `form:"name" json:"name" xml:"name"`
-	ClientVersion *string `form:"clientVersion" json:"clientVersion" xml:"clientVersion"`
+	SessionID string `json:"session_id"`
 }
 
 type Command struct {
-	ProcessId        int    `form:"processId" json:"processId" xml:"processId"`
-	ProcessStartTime int64  `form:"processStartTime" json:"processStartTime" xml:"processStartTime"`
-	Uuid             string `form:"uuid" json:"uuid" xml:"uuid"`
-	Command          string `form:"command" json:"command" xml:"command"`
-	Created          int64  `form:"created" json:"created" xml:"created"`
-	Path             string `form:"path" json:"path" xml:"path"`
-	SystemName       string `form:"systemName" json:"systemName" xml:"systemName"`
-	ExitStatus       int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
+	ProcessId        int    `json:"processId"`
+	ProcessStartTime int64  `json:"processStartTime"`
+	Uuid             string `json:"uuid"`
+	Command          string `json:"command"`
+	Created          int64  `json:"created"`
+	Path             string `json:"path"`
+	SystemName       string `json:"systemName"`
+	ExitStatus       int    `json:"exitStatus"`
 	User             User   `gorm:"association_foreignkey:ID"`
 	UserId           uint
 	Limit            int    `gorm:"-"`
@@ -58,18 +49,16 @@ type Command struct {
 	Query            string `gorm:"-"`
 }
 
-// {"mac": "83779604164095", "hostname": "yay.local", "name": "yay.local", "clientVersion": "1.2.0"}
-//{"name":"Home","mac":"83779604164095","userId":"5b5d53b6e4b02a6c4914bec8","hostname":"yay.local","clientVersion":"1.2.0","id":"5b5d53c8e4b02a6c4914bec9","created":1532842952382,"updated":1581032237766}
 type System struct {
-	ID            uint `form:"id" json:"id" xml:"id" gorm:"primary_key"`
+	ID            uint `json:"id" gorm:"primary_key"`
 	Created       int64
 	Updated       int64
-	Mac           *string `form:"mac" json:"mac" xml:"mac"`
-	Hostname      *string `form:"hostname" json:"hostname" xml:"hostname"`
-	Name          *string `form:"name" json:"name" xml:"name"`
-	ClientVersion *string `form:"clientVersion" json:"clientVersion" xml:"clientVersion"`
+	Mac           string  `json:"mac" gorm:"default:null"`
+	Hostname      *string `json:"hostname"`
+	Name          *string `json:"name"`
+	ClientVersion *string `json:"clientVersion"`
 	User          User    `gorm:"association_foreignkey:ID"`
-	UserId        uint    `form:"userId" json:"userId" xml:"userId"`
+	UserId        uint    `json:"userId"`
 }
 
 var (

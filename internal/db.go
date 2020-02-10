@@ -24,12 +24,10 @@ var (
 
 // DbInit initializes our db.
 func DbInit() {
-	// GormDB contains DB connection state
 	var gormdb *gorm.DB
-
 	var err error
 	if strings.HasPrefix(DbPath, "postgres://") {
-		//
+		// postgres
 		DB, err = sql.Open("postgres", DbPath)
 		if err != nil {
 			log.Fatal(err)
@@ -41,12 +39,12 @@ func DbInit() {
 		}
 		connectionLimit = 50
 	} else {
-
+		// sqlite
 		gormdb, err = gorm.Open("sqlite3", DbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		// regex function
 		regex := func(re, s string) (bool, error) {
 			b, e := regexp.MatchString(re, s)
 			return b, e
@@ -78,7 +76,7 @@ func DbInit() {
 	gormdb.Model(&Command{}).AddIndex("idx_exit_command_created", "exit_status, created, command")
 	gormdb.Model(&Command{}).AddIndex("idx_user_exit_command_created", "user_id, exit_status, created, command")
 
-	// just need gorm for migration.
+	// Just need gorm for migration and index creation.
 	gormdb.Close()
 }
 
@@ -468,15 +466,15 @@ func (sys System) systemInsert() int64 {
 	return inserted
 }
 
-func (sys System) systemGet() SystemQuery {
-	var row SystemQuery
+func (sys System) systemGet() System {
+	var row System
 	err := DB.QueryRow(`SELECT "name", "mac", "user_id", "hostname", "client_version",
  									  "id", "created", "updated" FROM systems 
  							  WHERE  "user_id" $1
  							  AND "mac" = $2`,
 		sys.User.ID, sys.Mac).Scan(&row)
 	if err != nil {
-		return SystemQuery{}
+		return System{}
 	}
 	return row
 
