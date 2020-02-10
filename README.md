@@ -32,7 +32,8 @@ If your system is not listed just add an issue requesting your os and architectu
 
 ## Usage 
 ```shell script
-$ bashhub-server --help
+bashhub-server --help
+
 Usage:
    [flags]
    [command]
@@ -52,12 +53,12 @@ Use " [command] --help" for more information about a command.
 Just run the server 
 
 ```shell script
-$ bashhub-server
+bashhub-server
 ```
 or on docker 
 
 ```shell script
-$ docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server 
+docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server 
 
 ```
 Then add ```export BH_HOST=localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
