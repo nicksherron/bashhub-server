@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/nicksherron/bashhub-server/internal"
@@ -32,13 +33,19 @@ import (
 var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Flags().Parse(args)
-		startupMessage()
-		internal.Run()
-	},
-}
+var (
+	noWarning bool
+	rootCmd   = &cobra.Command{
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.Flags().Parse(args)
+			if !noWarning {
+				checkBhEnv()
+			}
+			startupMessage()
+			internal.Run()
+		},
+	}
+)
 
 // Execute runs root command
 func Execute() {
@@ -50,9 +57,10 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize()
-	rootCmd.PersistentFlags().StringVar(&internal.LogFile, "log", "", `Set filepath for HTTP log. "" logs to stderr.`)
+	rootCmd.PersistentFlags().StringVar(&internal.LogFile, "log", "", `Set filepath for HTTP log. "" logs to stderr`)
 	rootCmd.PersistentFlags().StringVar(&internal.DbPath, "db", dbPath(), "DB location (sqlite or postgres)")
-	rootCmd.PersistentFlags().StringVarP(&internal.Addr, "addr", "a", listenAddr(), "Ip and port to listen and serve on.")
+	rootCmd.PersistentFlags().StringVarP(&internal.Addr, "addr", "a", listenAddr(), "Ip and port to listen and serve on")
+	rootCmd.PersistentFlags().BoolVarP(&noWarning, "warning-disable", "w", false, `Disable BH_URL env variable startup warning`)
 
 }
 
@@ -74,7 +82,7 @@ func startupMessage() {
 	color.HiGreen(banner)
 	fmt.Print("\n")
 	log.Printf("Listening and serving HTTP on %v", internal.Addr)
-	fmt.Print("\n\n")
+	fmt.Print("\n")
 }
 
 func listenAddr() string {
@@ -107,4 +115,15 @@ func appDir() string {
 	}
 
 	return ch
+}
+func checkBhEnv() {
+	addr := strings.ReplaceAll(internal.Addr, "http://", "")
+	bhURL := os.Getenv("BH_URL")
+	if strings.Contains(bhURL, "https://bashhub.com") {
+		msg := fmt.Sprintf(`
+WARNING: BH_URL is to https://bashhub.com on this machine
+If you will be running bashhub-client locally be sure to add
+export BH_URL=http://%v to your .bashrc or .zshrc`, addr)
+		fmt.Println(msg, "\n")
+	}
 }

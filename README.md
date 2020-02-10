@@ -69,6 +69,7 @@ Then add ```export BH_HOST=localhost:8080``` (or whatever you set your bashhub-s
 Thats it! Restart your shell with `$SHELL` then re-configure bashhub-client to use your new
 server by re-running ```bashhub setup``` .
 
-### Setting DB
+### Changing default db
+
 
 ### Using Regex
