@@ -14,8 +14,8 @@ added features like regex search.
 
 ## Why? 
 I love the idea behind bashhub. Having my shell history centralized and queryable from various systems whether it 
-be  my home computer or from an ssh session on a server is great. BUT not if that means sending my shell history to a  third-party, 
-regardless of their intentions or trustworthiness, so bashhub-server was created.
+be my home computer or from an ssh session on a server is great. However, even with encryption, 
+I was weary of sending my shell commands to a third-party server, so bashhub-server was created.
 
 
 ## Installation
