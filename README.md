@@ -1,14 +1,14 @@
 # bashhub-server
 [![Go Report Card](https://goreportcard.com/badge/github.com/nicksherron/bashhub-server)](https://goreportcard.com/report/github.com/nicksherron/bashhub-server)
 
-bashhub-server is a open-source server for  [bashhub-client](https://github.com/rcaloras/bashhub-client) with some
+bashhub-server is a private cloud alternative for  [bashhub-client](https://github.com/rcaloras/bashhub-client) with some
 added features like regex search.
  
 ## Features 
 
+- Very simple drop in replacement for bashhub.com server and easy to install and get running with existing bashhub-client
 - All the benefits of bashhub without having to send your shell history to a third-party
 - Regex search  
-- Very simple and easy to install and get running with existing bashhub-client
 - Written in Go so it's fast and is actively maintained
 
 ## Why? 
@@ -20,11 +20,11 @@ regardless of their intentions or trustworthiness, so bashhub-server was created
 ## Installation
 
 #### Homebrew or Linuxbrew
-```shell script
+```
 $ brew install bashhub-server/latest/bashhub-server
 ```
 #### Docker 
-```shell script
+```
 $ docker pull nicksherron/bashhub-server
 ```
 #### Releases 
@@ -74,7 +74,7 @@ $ bashhub-server
 ```
 or on docker 
 
-```shell script
+```
 $ docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server 
 ```
 Then add ```export BH_HOST=localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
@@ -82,7 +82,7 @@ Then add ```export BH_HOST=localhost:8080``` (or whatever you set your bashhub-s
 echo "export BH_HOST=localhost:8080" >> ~/.bashrc
 ```
 or 
-```shell script
+```
 $ echo "export BH_HOST=localhost:8080" >> ~/.zshr
 ```
 Thats it! Restart your shell and re-run bashhub setup.
@@ -96,19 +96,19 @@ By default the backend db uses sqlite, with the location for each os shown below
 
 | os      | default                                                                          |
 |---------|----------------------------------------------------------------------------------|
-| Unix    | $XDG_CONFIG_HOME/bashhub-server/data.db or  $HOME/.config/bashhub-server/data.db |
+| Unix    | $XDG_CONFIG_HOME/bashhub-server/data.db OR  $HOME/.config/bashhub-server/data.db |
 | Darwin  | $HOME/Library/Application Support/bashhub-server/data.db                         |
 | Windows | %AppData%\bashhub-server\data.db                                                 |
 | Plan 9  | $home/lib/bashhub-server/data.db                                                 |
 
 
 To set a different sqlite db file to use, run
-```shell script
+```
 $ bashhub-server --db path/to/file.db
 ```
 Postgresql is also supported by bashhub-server. To use postgres specify the postgres uri in the --db flag with the
-following syntax
-```shell script
+following format
+```
 $ bashhub-server --db "postgres://user:password@localhost:5432?sslmode=disable"
 ```
 
@@ -116,7 +116,7 @@ $ bashhub-server --db "postgres://user:password@localhost:5432?sslmode=disable"
 bashhub-server supports regex queries sent by the bh command (bashhub-client)
 
 Without regex
-```shell script
+```
 $ bh bash
 
 bashhub setup
@@ -132,7 +132,7 @@ bashhub-server version
 bashhub-server --help
 ```
 With regex
-```shell script
+```
 $ bh '^bash'
 
 bashhub setup
