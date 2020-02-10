@@ -44,7 +44,7 @@ Available Commands:
   version     Print the version number and build info
 
 Flags:
-  -a, --addr string   Ip and port to listen and serve on. (default "0.0.0.0:8080")
+  -a, --addr string   Ip and port to listen and serve on. (default "http://0.0.0.0:8080")
       --db string     DB location (sqlite or postgres)
   -h, --help          help for this command
       --log string    Set filepath for HTTP log. "" logs to stderr.
@@ -60,7 +60,7 @@ $ bashhub-server
 
  _               _     _           _
 | |             | |   | |         | |		version: v0.1.1
-| |__   __ _ ___| |__ | |__  _   _| |		address: 0.0.0.0:8080
+| |__   __ _ ___| |__ | |__  _   _| |		address: http://0.0.0.0:8080
 | '_ \ / _' / __| '_ \| '_ \| | | | '_ \
 | |_) | (_| \__ \ | | | | | | |_| | |_) |
 |_.__/ \__,_|___/_| |_|_| |_|\__,_|_.__/
@@ -70,20 +70,20 @@ $ bashhub-server
 |___/\___|_|    \_/ \___|_|
 
 
-2020/02/10 03:04:11 Listening and serving HTTP on 0.0.0.0:8080
+2020/02/10 03:04:11 Listening and serving HTTP on http://0.0.0.0:8080
 ```
 or on docker 
 
 ```
 $ docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server 
 ```
-Then add ```export BH_HOST=localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
+Then add ```export BH_HOST=http://localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
 ```
-echo "export BH_HOST=localhost:8080" >> ~/.bashrc
+echo "export BH_HOST=http://localhost:8080" >> ~/.bashrc
 ```
 or 
 ```
-$ echo "export BH_HOST=localhost:8080" >> ~/.zshr
+$ echo "export BH_HOST=http://localhost:8080" >> ~/.zshr
 ```
 Thats it! Restart your shell and re-run bashhub setup.
 ```
