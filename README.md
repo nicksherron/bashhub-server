@@ -1,4 +1,5 @@
 # bashhub-server
+[![Go Report Card](https://goreportcard.com/badge/github.com/nicksherron/bashhub-server)](https://goreportcard.com/report/github.com/nicksherron/bashhub-server)
 
 bashub-server is a open-source server for  [bashhub-client](https://github.com/rcaloras/bashhub-client) with some
 added features like regex search.
