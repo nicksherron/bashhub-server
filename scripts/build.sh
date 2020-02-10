@@ -28,7 +28,7 @@ xgo \
     --targets="windows/*,darwin/amd64,linux/386,linux/amd64" \
     --dest=dist \
     -ldflags "-X github.com/nicksherron/bashhub-server/cmd.Version=${version}
-     -X github.com/nicksherron/bashhub-server/cmd.Build=${commit}
+     -X github.com/nicksherron/bashhub-server/cmd.GitCommit=${commit}
      -X github.com/nicksherron/bashhub-server/cmd.BuildDate=${build_date}" \
     -v -x \
     github.com/nicksherron/bashhub-server
