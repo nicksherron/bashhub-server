@@ -19,7 +19,7 @@ RUN apk update && \
     apk add --no-cache gcc g++ musl-dev
 
 
-RUN go build -ldflags '-w -linkmode external -extldflags "-static" -ldflags "-X github.com/nicksherron/proxi/cmd.Version=${VERSION}  -X github.com/nicksherron/bashhub-server/cmd.GitCommit=${GIT_COMMIT} -X github.com/nicksherron/bashhub-server/cmd.BuildDate=${BUILD_DATE}"' -o /go/bin/bashhub-server
+RUN go build -ldflags '-w -linkmode external -extldflags "-static" "-X github.com/nicksherron/proxi/cmd.Version=${VERSION}  -X github.com/nicksherron/bashhub-server/cmd.GitCommit=${GIT_COMMIT} -X github.com/nicksherron/bashhub-server/cmd.BuildDate=${BUILD_DATE}"' -o /go/bin/bashhub-server
 
 # ---
 
