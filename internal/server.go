@@ -25,6 +25,10 @@ type Query struct {
 	Uuid    string `form:"uuid" json:"uuid" xml:"uuid"`
 	Command string `form:"command" json:"command" xml:"command"`
 	Created int64  `form:"created" json:"created" xml:"created"`
+	Path    string `form:"path" json:"path" xml:"path"`
+	ExitStatus       int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
+	Username         string  `form:"username" json:"username" xml:"username"`
+	SystemName       string  `gorm:"-"  json:"systemName" `
 }
 type SystemQuery struct {
 	ID            uint `form:"id" json:"id" xml:"id" gorm:"primary_key"`
@@ -81,8 +85,8 @@ func Run() {
 	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
 		Realm:       "bashhub-server zone",
 		Key:         []byte(secret),
-		Timeout:     1000 * time.Hour,
-		MaxRefresh:  1000 * time.Hour,
+		Timeout:     10000 * time.Hour,
+		MaxRefresh:  10000 * time.Hour,
 		IdentityKey: "username",
 		LoginResponse: func(c *gin.Context, code int, token string, expire time.Time) {
 			c.JSON(http.StatusOK, gin.H{
@@ -204,6 +208,20 @@ func Run() {
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
+		c.IndentedJSON(http.StatusOK, result)
+
+	})
+
+	r.GET("/api/v1/command/:uuid", func(c *gin.Context) {
+		var command Command
+		command.Uuid = c.Param("uuid")
+		var user User
+		claims := jwt.ExtractClaims(c)
+		user.Username = claims["username"].(string)
+		command.User.ID = user.userGetId()
+		result := command.commandGetUUID()
+		result.Username =  user.Username
+		
 		c.IndentedJSON(http.StatusOK, result)
 
 	})

@@ -433,6 +433,20 @@ func (cmd Command) commandGet() []Query {
 
 }
 
+func (cmd Command) commandGetUUID() Query {
+	var result Query
+	err := DB.QueryRow(`SELECT "command","path", "created" , "uuid", "exit_status", "system_name" 
+								 FROM commands
+								 WHERE "uuid" = $1 
+								 AND "user_id" = $2`, cmd.Uuid, cmd.User.ID).Scan(
+								 	&result.Command, &result.Path, &result.Created, &result.Uuid,
+								 	&result.ExitStatus, &result.SystemName)
+	if err != nil {
+		log.Println(err)
+	}
+	return result
+}
+
 func (sys System) systemInsert() int64 {
 
 	t := time.Now().Unix()
