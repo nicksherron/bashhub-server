@@ -28,7 +28,8 @@ type Query struct {
 	Path       string `form:"path" json:"path" xml:"path"`
 	ExitStatus int    `form:"exitStatus" json:"exitStatus" xml:"exitStatus"`
 	Username   string `form:"username" json:"username" xml:"username"`
-	SystemName string `gorm:"-"  json:"systemName" `
+	SystemName string `gorm:"-"  json:"systemName"`
+	SessionID string `form:"session_id" json:"session_id" xml:"session_id"`
 }
 type SystemQuery struct {
 	ID            uint `form:"id" json:"id" xml:"id" gorm:"primary_key"`
@@ -220,7 +221,7 @@ func Run() {
 		}
 
 	})
-	
+
 	r.POST("/api/v1/command", func(c *gin.Context) {
 		var command Command
 		if err := c.ShouldBindJSON(&command); err != nil {
