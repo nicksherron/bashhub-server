@@ -39,6 +39,7 @@ var rootCmd = &cobra.Command{
 		internal.Run()
 	},
 }
+
 // Execute runs root command
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {

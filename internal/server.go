@@ -82,7 +82,7 @@ type System struct {
 
 var (
 	// Addr is the listen and server address for our server (gin)
-	Addr    string
+	Addr string
 	// LogFile is the log file location for http logging. Default is stderr.
 	LogFile string
 )
@@ -109,6 +109,7 @@ func loggerWithFormatterWriter(f gin.LogFormatter) gin.HandlerFunc {
 		Output:    getLog(),
 	})
 }
+
 // Run starts server
 func Run() {
 	// Initialize backend

@@ -27,7 +27,7 @@ import (
 
 // versionCmd represents the version command
 var (
-	GitCommit      string
+	GitCommit  string
 	BuildDate  string
 	Version    string
 	OsArch     = fmt.Sprintf("%s %s", runtime.GOOS, runtime.GOARCH)
