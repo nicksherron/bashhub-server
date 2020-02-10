@@ -17,7 +17,7 @@ if [ ! $last_tag_ref == $last_commit_ref ]; then
 fi
 
 export GITHUB_USER=nicksherorn
-export GITHUB_REPO=proxi
+export GITHUB_REPO=bashhub-server
 
 echo "Verifying release"
 if hub release | grep $version >/dev/null 2>&1; then

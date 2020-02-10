@@ -24,46 +24,46 @@ rm -rf dist.bk/
 export GO111MODULE=on
 
 xgo \
-    -out="proxi-${version}" \
+    -out="bashhub-server-${version}" \
     --targets="windows/*,darwin/amd64,linux/386,linux/amd64" \
     --dest=dist \
-    -ldflags "-X github.com/nicksherron/proxi/internal.Version=${version}
-     -X github.com/nicksherron/proxi/cmd.Build=${commit}
-     -X github.com/nicksherron/proxi/cmd.BuildDate=${build_date}" \
+    -ldflags "-X github.com/nicksherron/bashhub-server/cmd.Version=${version}
+     -X github.com/nicksherron/bashhub-server/cmd.Build=${commit}
+     -X github.com/nicksherron/bashhub-server/cmd.BuildDate=${build_date}" \
     -v -x \
-    github.com/nicksherron/proxi
+    github.com/nicksherron/bashhub-server
 
 
 sudo chown -R $USER: dist/
 
 
-darwin_amd64=proxi_${version}_darwin_amd64
-linux_386=proxi_${version}_linux_386
-linux_amd64=proxi_${version}_linux_amd64
-windows_386=proxi_${version}_windows_386
-windows_amd64=proxi_${version}_windows_amd64
+darwin_amd64=bashhub-server_${version}_darwin_amd64
+linux_386=bashhub-server_${version}_linux_386
+linux_amd64=bashhub-server_${version}_linux_amd64
+windows_386=bashhub-server_${version}_windows_386
+windows_amd64=bashhub-server_${version}_windows_amd64
 
 mkdir dist/{$darwin_amd64,$linux_386,$linux_amd64,$windows_386,$windows_amd64}
 
 pushd dist
 
-mv proxi-${version}-darwin-10.6-amd64 ${darwin_amd64}/proxi \
+mv bashhub-server-${version}-darwin-10.6-amd64 ${darwin_amd64}/bashhub-server \
   && tar -czvf ${darwin_amd64}.tar.gz ${darwin_amd64}
 
-mv proxi-${version}-linux-386 ${linux_386}/proxi \
+mv bashhub-server-${version}-linux-386 ${linux_386}/bashhub-server \
   && tar czvf ${linux_386}.tar.gz ${linux_386}
 
-mv proxi-${version}-linux-amd64 ${linux_amd64}/proxi \
+mv bashhub-server-${version}-linux-amd64 ${linux_amd64}/bashhub-server \
   && tar czvf ${linux_amd64}.tar.gz ${linux_amd64}
 
-mv proxi-${version}-windows-4.0-386.exe ${windows_386}/proxi \
+mv bashhub-server-${version}-windows-4.0-386.exe ${windows_386}/bashhub-server \
   && zip -r ${windows_386}.zip ${windows_386}
 
-mv proxi-${version}-windows-4.0-amd64.exe ${windows_amd64}/proxi \
+mv bashhub-server-${version}-windows-4.0-amd64.exe ${windows_amd64}/bashhub-server \
   && zip -r ${windows_amd64}.zip ${windows_amd64}
 
 rm -rf {$darwin_amd64,$linux_386,$linux_amd64,$windows_386,$windows_amd64}
 
-shasum -a 256 * > proxi_${version}_checksums.txt
+shasum -a 256 * > bashhub-server_${version}_checksums.txt
 
 popd
