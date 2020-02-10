@@ -1,5 +1,5 @@
 # bashhub-server
-[![Go Report Card](https://goreportcard.com/badge/github.com/nicksherron/bashhub-server)](https://goreportcard.com/report/github.com/nicksherron/bashhub-server)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nicksherron/bashhub-server)](https://goreportcard.com/report/github.com/nicksherron/bashhub-server) [![Build Status](https://travis-ci.org/nicksherron/bashhub-server.svg?branch=master)](https://travis-ci.org/nicksherron/bashhub-server)
 
 bashhub-server is a private cloud alternative for  [bashhub-client](https://github.com/rcaloras/bashhub-client) with some
 added features like regex search.
