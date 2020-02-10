@@ -112,6 +112,7 @@ func (user User) userExists() bool {
 	}
 	return false
 }
+
 func (user User) userGetId() uint {
 	var id uint
 	err := DB.QueryRow("SELECT id FROM users WHERE username = $1",
@@ -121,6 +122,7 @@ func (user User) userGetId() uint {
 	}
 	return id
 }
+
 func (user User) userGetSystemName() string {
 	var systemName string
 	err := DB.QueryRow(`SELECT name 
@@ -143,6 +145,7 @@ func (user User) usernameExists() bool {
 	}
 	return exists
 }
+
 func (user User) emailExists() bool {
 	var exists bool
 	err := DB.QueryRow(`SELECT exists (select id FROM users WHERE "email" = $1)`,
@@ -154,6 +157,7 @@ func (user User) emailExists() bool {
 }
 
 func (user User) userCreate() int64 {
+	user.Password = hashAndSalt(user.Password)
 	res, err := DB.Exec(`INSERT INTO users("registration_code", "username","password","email")
  							 VALUES ($1,$2,$3,$4) ON CONFLICT(username) do nothing`, user.RegistrationCode,
 		user.Username, user.Password, user.Email)

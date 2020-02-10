@@ -174,8 +174,6 @@ func Run() {
 			c.String(409, "This email address is already registered.")
 			return
 		}
-
-		user.Password = hashAndSalt(user.Password)
 		user.userCreate()
 
 	})
