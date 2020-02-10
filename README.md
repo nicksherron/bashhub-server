@@ -140,3 +140,13 @@ bashhub setup
 bashhub-server version
 bashhub-server --help
 ```
+all commands with only 6 letters
+
+```
+$ bh "^[a-zA-Z]{6}$"
+whoami
+ggpush
+goland
+ggpull
+```
+
