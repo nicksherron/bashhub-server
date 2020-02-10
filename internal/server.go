@@ -1,9 +1,28 @@
+/*
+ *
+ * Copyright © 2020 nicksherron <nsherron90@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package internal
 
 import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -62,16 +81,52 @@ type System struct {
 }
 
 var (
-	Addr string
+	Addr    string
+	LogFile string
 )
 
 //TODO: Figure out a better way to do this.
 const secret = "bashub-server-secret"
 
-func Run() {
+func getLog() *os.File {
 
-	DbInit()
-	r := gin.Default()
+	if LogFile != "" {
+		f, err := os.Create(LogFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return f
+	}
+	return os.Stderr
+}
+
+// LoggerWithFormatter instance a Logger middleware with the specified log format function.
+func loggerWithFormatterWriter(f gin.LogFormatter) gin.HandlerFunc {
+	return gin.LoggerWithConfig(gin.LoggerConfig{
+		Formatter: f,
+		Output:    getLog(),
+	})
+}
+
+func Run() {
+	// Initialize backend
+	dbInit()
+
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+	r.Use(gin.Recovery())
+
+	r.Use(loggerWithFormatterWriter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("[BASHHUB-SERVER] %v | %3d | %13v | %15s | %-7s  %s\n",
+			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+			param.StatusCode,
+			param.Latency,
+			param.ClientIP,
+			param.Method,
+			param.Path,
+		)
+	}))
+
 	// the jwt middleware
 	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
 		Realm:       "bashhub-server zone",
