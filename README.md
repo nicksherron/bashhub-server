@@ -11,6 +11,7 @@ added features like regex search.
 - [Regex](https://github.com/nicksherron/bashhub-server#using-regex) search
 - Quickly connect any client with  access to your server bashhub-sever address/port.
 - Written in Go so it's fast and is actively maintained
+- Salt hashed password encrpytion and jwt authentication protected endpoints
 
 ## Why? 
 I love the idea behind bashhub. Having my shell history centralized and queryable from various systems whether it 
