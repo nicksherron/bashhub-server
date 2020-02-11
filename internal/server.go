@@ -325,6 +325,8 @@ func Run() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		claims := jwt.ExtractClaims(c)
+		query.Username = claims["username"].(string)
 		importCommands(query)
 	})
 

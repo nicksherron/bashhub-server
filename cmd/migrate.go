@@ -25,11 +25,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
 
-	"github.com/nicksherron/bashhub-server/internal"
+	"github.com/cheggaaa/pb/v3"
 	"github.com/spf13/cobra"
 )
 
@@ -39,39 +40,38 @@ type cList struct {
 	Created int64  `json:"created"`
 }
 
-type commandRecord struct {
-	Command    string `json:"command"`
-	Path       string `json:"path"`
-	Created    int64  `json:"created"`
-	UUID       string `json:"uuid"`
-	ExitStatus int    `json:"exitStatus"`
-	Username   string `json:"username"`
-	SystemName string `json:"systemName"`
-	SessionID  string `json:"sessionId"`
-}
-
 type commandsList []cList
 
 var (
-	srcUser    string
-	dstUser    string
-	srcURL     string
-	dstURL     string
-	srcPass    string
-	dstPass    string
-	srcToken   string
-	dstToken   string
-	wg         sync.WaitGroup
-	cmdList    commandsList
-	migrateCmd = &cobra.Command{
+	barTemplate   = `{{string . "message"}}{{counters . }} {{bar . }} {{percent . }} {{speed . "%s inserts/sec" }}`
+	bar           *pb.ProgressBar
+	progress      bool
+	srcUser       string
+	dstUser       string
+	srcURL        string
+	dstURL        string
+	srcPass       string
+	dstPass       string
+	srcToken      string
+	dstToken      string
+	sysRegistered bool
+	wg            sync.WaitGroup
+	cmdList       commandsList
+	migrateCmd    = &cobra.Command{
 		Use:   "migrate",
 		Short: "migrate bashhub history ",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)
+			sysRegistered = false
 			srcToken = getToken(srcURL, srcUser, srcPass)
+			sysRegistered = false
 			dstToken = getToken(dstURL, dstUser, dstPass)
 			cmdList = getCommandList()
 			counter := 0
+			if progress {
+				bar = pb.ProgressBarTemplate(barTemplate).Start(len(cmdList)).SetMaxWidth(70)
+				bar.Set("message", "inserting records \t")
+			}
 			for _, v := range cmdList {
 				wg.Add(1)
 				counter++
@@ -97,6 +97,38 @@ func init() {
 	migrateCmd.PersistentFlags().StringVar(&dstURL, "dst-url", "http://localhost:8080", "destination url")
 	migrateCmd.PersistentFlags().StringVar(&dstUser, "dst-user", "", "destination username")
 	migrateCmd.PersistentFlags().StringVar(&dstPass, "dst-pass", "", "destination password")
+	migrateCmd.PersistentFlags().BoolVarP(&progress, "progress", "p", true, "show progress bar")
+}
+
+func sysRegister(mac string, site string, user string, pass string) {
+
+	sys := map[string]interface{}{
+		"clientVersion": "1.2.0",
+		"name":          "migration",
+		"hostname":      os.Hostname(),
+		"mac":           mac,
+	}
+	payloadBytes, err := json.Marshal(sys)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	body := bytes.NewReader(payloadBytes)
+
+	u := fmt.Sprintf("%v/api/v1/system", srcURL)
+	req, err := http.NewRequest("POST", u, body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	sysRegistered = true
+	getToken(site, user, pass)
 
 }
 
@@ -134,7 +166,16 @@ func getToken(site string, user string, pass string) string {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == 409 && !sysRegistered {
+		//	register system
+		sysRegister(mac, site, user, pass)
+	}
 	if resp.StatusCode != 200 {
+		buf, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(buf)
 		log.Fatal("login failed for ", site)
 	}
 	buf, err := ioutil.ReadAll(resp.Body)
@@ -164,7 +205,7 @@ func getCommandList() commandsList {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		log.Println("Error on response.\n[ERRO] -", err)
+		log.Println("Error on response.\n", err)
 	}
 
 	defer resp.Body.Close()
@@ -194,7 +235,7 @@ func commandLookup(uuid string) {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		log.Println("Error on response.\n[ERRO] -", err)
+		log.Println("Error on response.\n", err)
 	}
 
 	defer resp.Body.Close()
@@ -206,21 +247,14 @@ func commandLookup(uuid string) {
 		log.Fatal(err)
 	}
 	srcSend(body)
-	var j internal.Query
-	err = json.Unmarshal(body, &j)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	j.Username = dstUser
-	b, err := json.Marshal(j)
-	if err != nil {
-		log.Fatal(err)
-	}
-	srcSend(b)
 }
 
 func srcSend(data []byte) {
+	defer func() {
+		if progress {
+			bar.Add(1)
+		}
+	}()
 	body := bytes.NewReader(data)
 
 	u := dstURL + "/api/v1/import"
@@ -233,7 +267,7 @@ func srcSend(data []byte) {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		log.Println("Error on response.\n[ERRO] -", err)
+		log.Println("Error on response.\n", err)
 	}
 
 	defer resp.Body.Close()
