@@ -111,6 +111,7 @@ func loggerWithFormatterWriter(f gin.LogFormatter) gin.HandlerFunc {
 	})
 }
 
+
 // Run starts server
 func Run() {
 	// Initialize backend

@@ -95,7 +95,7 @@ func dbInit() {
 	gormdb.AutoMigrate(&Command{})
 	gormdb.AutoMigrate(&System{})
 	//TODO: ensure these are the most efficient indexes
-	gormdb.Model(&User{}).AddIndex("idx_user", "username")
+	gormdb.Model(&User{}).AddUniqueIndex("idx_user", "username")
 	gormdb.Model(&System{}).AddIndex("idx_mac", "mac")
 	gormdb.Model(&Command{}).AddIndex("idx_exit_command_created", "exit_status, created, command")
 	gormdb.Model(&Command{}).AddIndex("idx_user_exit_command_created", "user_id, exit_status, created, command")

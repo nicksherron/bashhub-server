@@ -102,10 +102,14 @@ func init() {
 
 func sysRegister(mac string, site string, user string, pass string) {
 
+	host, err := os.Hostname()
+	if err != nil {
+		log.Fatal(err)
+	}
 	sys := map[string]interface{}{
 		"clientVersion": "1.2.0",
 		"name":          "migration",
-		"hostname":      os.Hostname(),
+		"hostname":      host,
 		"mac":           mac,
 	}
 	payloadBytes, err := json.Marshal(sys)
