@@ -513,7 +513,7 @@ func (sys System) systemGet() System {
 }
 
 func importCommands(q Query) {
-	_, err := db.Exec(`INSERT OR IGNORE INTO commands 
+	_, err := db.Exec(`INSERT INTO commands 
 							("command", "path", "created", "uuid", "exit_status",
 							 "system_name", "session_id", "user_id" )
 							 VALUES ($1,$2,$3,$4,$5,$6,$7,(select "id" from users where "username" = $8)) ON CONFLICT do nothing`,
