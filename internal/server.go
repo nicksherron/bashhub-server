@@ -97,7 +97,7 @@ type Status struct {
 type Config struct {
 	Secret  string
 	ID      int
-	Created time.Duration
+	Created time.Time
 }
 
 var (

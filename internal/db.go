@@ -110,8 +110,8 @@ func dbInit() {
 func (c Config) getSecret() string {
 	var err error
 	if connectionLimit != 1 {
-		_, err = db.Exec(`INSERT INTO configs ("id","created" "secret") 
-						VALUES (1, now(),  SELECT md5(random()::text)) 
+		_, err = db.Exec(`INSERT INTO configs ("id","created", "secret") 
+						VALUES (1, now(), (SELECT md5(random()::text)))
 						ON conflict do nothing;`)
 
 	} else {
