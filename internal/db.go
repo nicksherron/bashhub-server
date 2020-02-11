@@ -94,13 +94,36 @@ func dbInit() {
 	gormdb.AutoMigrate(&User{})
 	gormdb.AutoMigrate(&Command{})
 	gormdb.AutoMigrate(&System{})
+	gormdb.AutoMigrate(&Config{})
+
 	//TODO: ensure these are the most efficient indexes
 	gormdb.Model(&User{}).AddIndex("idx_user", "username")
 	gormdb.Model(&System{}).AddIndex("idx_mac", "mac")
 	gormdb.Model(&Command{}).AddIndex("idx_user_command_created", "user_id, created, command")
 	gormdb.Model(&Command{}).AddIndex("idx_user_uuid", "user_id, uuid")
+	gormdb.Model(&Config{}).AddUniqueIndex("idx_config_id", "id")
+
 	// Just need gorm for migration and index creation.
 	gormdb.Close()
+}
+
+func (c Config) getSecret() string {
+	var err error
+	if connectionLimit != 1 {
+		_, err = db.Exec(`INSERT INTO configs ("id","created" "secret") 
+						VALUES (1, now(),  SELECT md5(random()::text)) 
+						ON conflict do nothing;`)
+
+	} else {
+		_, err = db.Exec(`INSERT INTO configs ("id","created" ,"secret") 
+						VALUES (1, current_timestamp, lower(hex(randomblob(16)))) 
+						ON conflict do nothing;`)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = db.QueryRow(`SELECT "secret" from configs where "id" = 1 `).Scan(&c.Secret)
+	return c.Secret
 }
 
 func hashAndSalt(password string) string {

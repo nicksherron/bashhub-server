@@ -94,15 +94,19 @@ type Status struct {
 	SessionTotalCommands int    `json:"sessionTotalCommands"`
 }
 
+type Config struct {
+	Secret  string
+	ID      int
+	Created time.Duration
+}
+
 var (
 	// Addr is the listen and server address for our server (gin)
 	Addr string
 	// LogFile is the log file location for http logging. Default is stderr.
 	LogFile string
+	config  Config
 )
-
-//TODO: Figure out a better way to do this.
-const secret = "bashub-server-secret"
 
 func getLog() *os.File {
 
@@ -147,7 +151,7 @@ func Run() {
 	// the jwt middleware
 	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
 		Realm:       "bashhub-server zone",
-		Key:         []byte(secret),
+		Key:         []byte(config.getSecret()),
 		Timeout:     10000 * time.Hour,
 		MaxRefresh:  10000 * time.Hour,
 		IdentityKey: "username",
