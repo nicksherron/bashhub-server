@@ -34,13 +34,10 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var (
-	noWarning bool
-	rootCmd   = &cobra.Command{
+	rootCmd = &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)
-			if !noWarning {
-				checkBhEnv()
-			}
+			checkBhEnv()
 			startupMessage()
 			internal.Run()
 		},
@@ -60,7 +57,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&internal.LogFile, "log", "", `Set filepath for HTTP log. "" logs to stderr`)
 	rootCmd.PersistentFlags().StringVar(&internal.DbPath, "db", dbPath(), "DB location (sqlite or postgres)")
 	rootCmd.PersistentFlags().StringVarP(&internal.Addr, "addr", "a", listenAddr(), "Ip and port to listen and serve on")
-	rootCmd.PersistentFlags().BoolVarP(&noWarning, "warning-disable", "w", false, `Disable BH_URL env variable startup warning`)
 
 }
 

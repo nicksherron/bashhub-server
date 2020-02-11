@@ -55,11 +55,12 @@ var (
 	srcToken      string
 	dstToken      string
 	sysRegistered bool
+	workers		  int
 	wg            sync.WaitGroup
 	cmdList       commandsList
-	migrateCmd    = &cobra.Command{
-		Use:   "migrate",
-		Short: "migrate bashhub history ",
+	transferCmd    = &cobra.Command{
+		Use:   "transfer",
+		Short: "transfer bashhub history ",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)
 			sysRegistered = false
@@ -68,7 +69,7 @@ var (
 			dstToken = getToken(dstURL, dstUser, dstPass)
 			cmdList = getCommandList()
 			counter := 0
-			if progress {
+			if !progress {
 				bar = pb.ProgressBarTemplate(barTemplate).Start(len(cmdList)).SetMaxWidth(70)
 				bar.Set("message", "inserting records \t")
 			}
@@ -79,7 +80,7 @@ var (
 					defer wg.Done()
 					commandLookup(c.UUID)
 				}(v)
-				if counter > 20 {
+				if counter > workers {
 					wg.Wait()
 					counter = 0
 				}
@@ -90,17 +91,64 @@ var (
 )
 
 func init() {
-	rootCmd.AddCommand(migrateCmd)
-	migrateCmd.PersistentFlags().StringVar(&srcURL, "src-url", "https://bashhub.com", "source url")
-	migrateCmd.PersistentFlags().StringVar(&srcUser, "src-user", "", "source username")
-	migrateCmd.PersistentFlags().StringVar(&srcPass, "src-pass", "", "source password")
-	migrateCmd.PersistentFlags().StringVar(&dstURL, "dst-url", "http://localhost:8080", "destination url")
-	migrateCmd.PersistentFlags().StringVar(&dstUser, "dst-user", "", "destination username")
-	migrateCmd.PersistentFlags().StringVar(&dstPass, "dst-pass", "", "destination password")
-	migrateCmd.PersistentFlags().BoolVarP(&progress, "progress", "p", true, "show progress bar")
+	rootCmd.AddCommand(transferCmd)
+	transferCmd.PersistentFlags().StringVar(&srcURL, "src-url", "https://bashhub.com", "source url")
+	transferCmd.PersistentFlags().StringVar(&srcUser, "src-user", "", "source username")
+	transferCmd.PersistentFlags().StringVar(&srcPass, "src-pass", "", "source password")
+	transferCmd.PersistentFlags().StringVar(&dstURL, "dst-url", "http://localhost:8080", "destination url")
+	transferCmd.PersistentFlags().StringVar(&dstUser, "dst-user", "", "destination username")
+	transferCmd.PersistentFlags().StringVar(&dstPass, "dst-pass", "", "destination password")
+	transferCmd.PersistentFlags().BoolVarP(&progress, "progress", "p", false, "show progress bar")
+	transferCmd.PersistentFlags().IntVarP(&workers, "workers", "w", 10, "max number of concurrent requests")
 }
 
-func sysRegister(mac string, site string, user string, pass string) {
+func sysRegister(mac string, site string, user string, pass string) string {
+
+	var token string
+	func() {
+		var null *string
+		auth := map[string]interface{}{
+			"username": user,
+			"password": pass,
+			"mac":      null,
+		}
+
+		payloadBytes, err := json.Marshal(auth)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		body := bytes.NewReader(payloadBytes)
+
+		u := fmt.Sprintf("%v/api/v1/login", site)
+		req, err := http.NewRequest("POST", u, body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		j := make(map[string]interface{})
+
+		json.Unmarshal(buf, &j)
+
+		if len(j) == 0 {
+			log.Fatal("login failed for ", site)
+
+		}
+		token = fmt.Sprintf("Bearer %v", j["accessToken"])
+
+	}()
 
 	host, err := os.Hostname()
 	if err != nil {
@@ -125,14 +173,23 @@ func sysRegister(mac string, site string, user string, pass string) {
 		log.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
+
+	log.Println(resp.StatusCode)
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(string(b))
+
 	sysRegistered = true
-	getToken(site, user, pass)
+	return getToken(site, user, pass)
 
 }
 
@@ -172,15 +229,7 @@ func getToken(site string, user string, pass string) string {
 
 	if resp.StatusCode == 409 && !sysRegistered {
 		//	register system
-		sysRegister(mac, site, user, pass)
-	}
-	if resp.StatusCode != 200 {
-		buf, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(buf)
-		log.Fatal("login failed for ", site)
+		return sysRegister(mac, site, user, pass)
 	}
 	buf, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -189,6 +238,7 @@ func getToken(site string, user string, pass string) string {
 	j := make(map[string]interface{})
 
 	json.Unmarshal(buf, &j)
+
 	if len(j) == 0 {
 		log.Fatal("login failed for ", site)
 
@@ -255,7 +305,7 @@ func commandLookup(uuid string) {
 
 func srcSend(data []byte) {
 	defer func() {
-		if progress {
+		if !progress {
 			bar.Add(1)
 		}
 	}()
