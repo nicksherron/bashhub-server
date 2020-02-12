@@ -63,6 +63,13 @@ var (
 		Short: "transfer bashhub history ",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)
+			if workers > 10 && srcURL == "https://bashhub.com" {
+				msg := fmt.Sprintf(`
+	WARNING: errors are likely to occur when setting workers higher
+	than 10 when transferring from https://bashhub.com`)
+				fmt.Print(msg, "\n\n")
+			}
+
 			sysRegistered = false
 			srcToken = getToken(srcURL, srcUser, srcPass)
 			sysRegistered = false
@@ -75,8 +82,6 @@ var (
 			}
 			client := &http.Client{}
 			for _, v := range cmdList {
-				//commandLookup(v.UUID, client)
-				//}
 				wg.Add(1)
 				counter++
 				go func(c cList) {
