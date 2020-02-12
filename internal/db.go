@@ -490,14 +490,15 @@ func (cmd Command) commandDelete() int64 {
 	return inserted
 
 }
+
 func (sys System) systemUpdate() int64 {
 
 	t := time.Now().Unix()
 	res, err := db.Exec(`
 	UPDATE systems 
-		SET "hostname" = $1 , "updated" = $3
-		WHERE "user_id" = $2
-		AND "mac" = $3`,
+		SET "hostname" = $1 , "updated" = $2
+		WHERE "user_id" = $3
+		AND "mac" = $4`,
 		sys.Hostname, t, sys.User.ID, sys.Mac)
 	if err != nil {
 		log.Fatal(err)
