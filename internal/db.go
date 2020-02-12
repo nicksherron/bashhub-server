@@ -80,7 +80,7 @@ func dbInit() {
 				},
 			})
 
-		DbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc", DbPath)
+		DbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc&_loc=auto", DbPath)
 		db, err = sql.Open("sqlite3_with_regex", DbPath)
 		if err != nil {
 			log.Fatal(err)
