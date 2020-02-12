@@ -174,7 +174,7 @@ $ bashhub-server transfer \
 transferring 872 / 8909 [-->____________________] 9.79% 45 inserts/sec
 ```
 
- If you're transferring from Bashhub.com they a limit of 10 requests a seconds and you are limited to your last 10,000 commands.
+ If you're transferring from Bashhub.com they have a rate limit of 10 requests a seconds and you are limited to your last 10,000 commands.
 
 
 
