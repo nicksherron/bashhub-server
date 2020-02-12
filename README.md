@@ -1,5 +1,5 @@
 # bashhub-server
-[![Go Report Card](https://goreportcard.com/badge/github.com/nicksherron/bashhub-server)](https://goreportcard.com/report/github.com/nicksherron/bashhub-server) [![Build Status](https://travis-ci.org/nicksherron/bashhub-server.svg?branch=master)](https://travis-ci.org/nicksherron/bashhub-server)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nicksherron/bashhub-server)](https://goreportcard.com/report/github.com/nicksherron/bashhub-server) [![Build Status](https://travis-ci.org/nicksherron/bashhub-server.svg?branch=master)](https://travis-ci.org/nicksherron/bashhub-server) [![Join the chat at https://gitter.im/bashhub_server/community](https://badges.gitter.im/bashhub_server/community.svg)](https://gitter.im/bashhub_server/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 bashhub-server is a private cloud alternative for  [bashhub-client](https://github.com/rcaloras/bashhub-client) with some
 added features like regex search.
@@ -17,7 +17,7 @@ added features like regex search.
 ## Why? 
 I love the idea behind bashhub. Having my shell history centralized and queryable from various systems whether it 
 be my home computer or from an ssh session on a server is great. However, even with encryption, 
-I was leary of sending my shell commands to a third-party server, so bashhub-server was created.
+I was weary of sending my shell commands to a third-party server, so bashhub-server was created.
 
 
 ## Installation
