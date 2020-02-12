@@ -36,7 +36,7 @@ $ GO111MODULE=on go get -u github.com/nicksherron/bashhub-server
 ```
 #### Releases 
 Binaries for various os and architectures can be found in [releases](https://github.com/nicksherron/bashhub-server/releases).
-If your system is not listed just submit a issue requesting your os and architecture.
+If your system is not listed just submit an issue requesting your os and architecture.
 
 ## Usage 
 ```
@@ -48,6 +48,7 @@ Usage:
 
 Available Commands:
   help        Help about any command
+  transfer    Transfer bashhub history from one server to another
   version     Print the version number and build info
 
 Flags:

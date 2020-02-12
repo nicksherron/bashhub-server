@@ -26,7 +26,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -43,7 +42,7 @@ type cList struct {
 type commandsList []cList
 
 var (
-	barTemplate   = `{{string . "message"}}{{counters . }} {{bar . }} {{percent . }} {{speed . "%s inserts/sec" }}`
+	barTemplate   = `{{string . "message" | green }}{{counters . }} {{bar . }} {{percent . }} {{speed . "%s inserts/sec" | green}}`
 	bar           *pb.ProgressBar
 	progress      bool
 	srcUser       string
@@ -60,9 +59,29 @@ var (
 	cmdList       commandsList
 	transferCmd   = &cobra.Command{
 		Use:   "transfer",
-		Short: "transfer bashhub history ",
+		Short: "Transfer bashhub history from one server to another",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)
+
+			switch {
+			case srcUser == "":
+				_ = cmd.Usage()
+				fmt.Print("\n\n")
+				log.Fatal("--src-user can't be blank")
+			case srcPass == "":
+				_ = cmd.Usage()
+				fmt.Print("\n\n")
+				log.Fatal("--src-pass can't be blank")
+			case dstUser == "":
+				_ = cmd.Usage()
+				fmt.Print("\n\n")
+				log.Fatal("--dst-user can't be blank")
+			case dstPass == "":
+				_ = cmd.Usage()
+				fmt.Print("\n\n")
+				log.Fatal("--dst-pass can't be blank")
+			}
+
 			if workers > 10 && srcURL == "https://bashhub.com" {
 				msg := fmt.Sprintf(`
 	WARNING: errors are likely to occur when setting workers higher
@@ -78,16 +97,15 @@ var (
 			counter := 0
 			if !progress {
 				bar = pb.ProgressBarTemplate(barTemplate).Start(len(cmdList)).SetMaxWidth(70)
-				bar.Set("message", "inserting records \t")
+				bar.Set("message", "transferring ")
 			}
 			client := &http.Client{}
+			// ignore http errors. We try and recover them
+			log.SetOutput(nil)
 			for _, v := range cmdList {
 				wg.Add(1)
 				counter++
-				go func(c cList) {
-					defer wg.Done()
-					commandLookup(c.UUID, client)
-				}(v)
+				go commandLookup(v.UUID, client, 0)
 				if counter > workers {
 					wg.Wait()
 					counter = 0
@@ -164,7 +182,7 @@ func sysRegister(mac string, site string, user string, pass string) string {
 	}
 	sys := map[string]interface{}{
 		"clientVersion": "1.2.0",
-		"name":          "migration",
+		"name":          "transfer",
 		"hostname":      host,
 		"mac":           mac,
 	}
@@ -189,26 +207,13 @@ func sysRegister(mac string, site string, user string, pass string) string {
 	}
 	defer resp.Body.Close()
 
-	log.Println(resp.StatusCode)
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println(string(b))
-
 	sysRegistered = true
 	return getToken(site, user, pass)
 
 }
 
 func getToken(site string, user string, pass string) string {
-	// function used by bashhub to identify system
-	cmd := exec.Command("python", "-c", "import uuid; print(str(uuid.getnode()))")
-	m, err := cmd.Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	mac := strings.ReplaceAll(string(m), "\n", ``)
+	mac := "888888888888888"
 	auth := map[string]interface{}{
 		"username": user,
 		"password": pass,
@@ -267,7 +272,7 @@ func getCommandList() commandsList {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		log.Println("Error on response.\n", err)
+		log.Fatal("Error on response.\n", err)
 	}
 
 	defer resp.Body.Close()
@@ -279,40 +284,55 @@ func getCommandList() commandsList {
 		log.Fatal(err)
 	}
 	var result commandsList
-	json.Unmarshal(body, &result)
-
-	return result
-}
-
-func commandLookup(uuid string, client *http.Client) {
-	u := strings.TrimSpace(srcURL) + "/api/v1/command/" + strings.TrimSpace(uuid)
-	req, err := http.NewRequest("GET", u, nil)
+	err = json.Unmarshal(body, &result)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	return result
+}
+
+func commandLookup(uuid string, client *http.Client, retries int) {
+	defer func() {
+		if r := recover(); r != nil {
+			mem := strings.Contains(fmt.Sprintf("%v", r), "runtime error: invalid memory address")
+			eof := strings.Contains(fmt.Sprintf("%v", r), "EOF")
+			if mem || eof {
+				if retries < 10 {
+					retries++
+					commandLookup(uuid, client, retries)
+				} else {
+					log.SetOutput(os.Stderr)
+					log.Println("ERROR: failed over 10 times looking up command from source with uuid: ", uuid)
+					log.SetOutput(nil)
+				}
+			} else {
+				log.SetOutput(os.Stderr)
+				log.Fatal(r)
+			}
+		}
+	}()
+
+	u := strings.TrimSpace(srcURL) + "/api/v1/command/" + strings.TrimSpace(uuid)
+	req, err := http.NewRequest("GET", u, nil)
+
+	if err != nil {
+		panic(err)
+	}
 	req.Header.Add("Authorization", srcToken)
 
 	resp, err := client.Do(req)
 
 	if err != nil {
-		log.Println("Error on response.\n", err)
+		panic(err)
 	}
-
-	//defer func() {
-	//	err = resp.Body.Close()
-	//	if err !=  nil {
-	//		log.Println(err)
-	//	}
-	//
-	//}()
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		log.Fatalf("failed command lookup from %v, go status code %v", srcURL, resp.StatusCode)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	srcSend(body, client)
 }
@@ -322,19 +342,24 @@ func srcSend(data []byte, client *http.Client) {
 		if !progress {
 			bar.Add(1)
 		}
+		wg.Done()
 	}()
 	body := bytes.NewReader(data)
 
 	u := dstURL + "/api/v1/import"
 	req, err := http.NewRequest("POST", u, body)
 	if err != nil {
+		log.SetOutput(os.Stderr)
 		log.Fatal(err)
 	}
 	req.Header.Add("Authorization", dstToken)
+
 	resp, err := client.Do(req)
 
 	if err != nil {
+		log.SetOutput(os.Stderr)
 		log.Println("Error on response.\n", err)
+		log.SetOutput(nil)
 	}
 
 	defer resp.Body.Close()
