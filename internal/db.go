@@ -104,7 +104,6 @@ func dbInit() {
 	gormdb.Model(&Config{}).AddUniqueIndex("idx_config_id", "id")
 	gormdb.Model(&Command{}).AddUniqueIndex("idx_uuid", "uuid")
 
-
 	// Just need gorm for migration and index creation.
 	gormdb.Close()
 }
@@ -506,17 +505,18 @@ func (sys System) systemInsert() int64 {
 	return inserted
 }
 
-func (sys System) systemGet() System {
+func (sys System) systemGet() (System, error) {
 	var row System
 	err := db.QueryRow(`SELECT "name", "mac", "user_id", "hostname", "client_version",
  									  "id", "created", "updated" FROM systems 
- 							  WHERE  "user_id" $1
+ 							  WHERE  "user_id" = $1
  							  AND "mac" = $2`,
-		sys.User.ID, sys.Mac).Scan(&row)
+		sys.User.ID, sys.Mac).Scan(&row.Name, &row.Mac, &row.UserId, &row.Hostname,
+		&row.ClientVersion, &row.ID, &row.Created, &row.Updated)
 	if err != nil {
-		return System{}
+		return System{}, err
 	}
-	return row
+	return row, nil
 
 }
 

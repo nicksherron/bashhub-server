@@ -334,9 +334,10 @@ func Run() {
 		}
 		username := claims["username"].(string)
 		system.User.ID = userGetId(username)
-		result := system.systemGet()
-		if len(result.Mac) == 0 {
-			c.AbortWithStatus(404)
+		system.Mac = mac
+		result, err  := system.systemGet()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		c.IndentedJSON(http.StatusOK, result)
