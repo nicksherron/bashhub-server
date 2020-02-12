@@ -42,15 +42,14 @@ type User struct {
 }
 
 type Query struct {
-	Uuid       string `json:"uuid"`
 	Command    string `json:"command"`
-	Created    int64  `json:"created"`
 	Path       string `json:"path"`
+	Created    int64  `json:"created"`
+	Uuid       string `json:"uuid"`
 	ExitStatus int    `json:"exitStatus"`
 	Username   string `json:"username"`
 	SystemName string `gorm:"-"  json:"systemName"`
-	//TODO: implement sessions
-	SessionID string `json:"session_id"`
+	SessionID  string `json:"sessionId"`
 }
 
 type Command struct {
@@ -67,6 +66,7 @@ type Command struct {
 	Limit            int    `gorm:"-"`
 	Unique           bool   `gorm:"-"`
 	Query            string `gorm:"-"`
+	SessionID        string `json:"sessionId"`
 }
 
 type System struct {
@@ -371,7 +371,17 @@ func Run() {
 		}
 
 		c.IndentedJSON(http.StatusOK, result)
+	})
 
+	r.POST("/api/v1/import", func(c *gin.Context) {
+		var query Query
+		if err := c.ShouldBindJSON(&query); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		claims := jwt.ExtractClaims(c)
+		query.Username = claims["username"].(string)
+		importCommands(query)
 	})
 
 	Addr = strings.ReplaceAll(Addr, "http://", "")

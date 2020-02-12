@@ -2,6 +2,7 @@ module github.com/nicksherron/bashhub-server
 
 require (
 	github.com/appleboy/gin-jwt/v2 v2.6.3
+	github.com/cheggaaa/pb/v3 v3.0.4
 	github.com/fatih/color v1.9.0
 	github.com/gin-gonic/gin v1.5.0
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
