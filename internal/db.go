@@ -158,16 +158,6 @@ func (user User) userExists() bool {
 	return false
 }
 
-func userGetId(username string) uint {
-	var id uint
-	err := db.QueryRow("SELECT id FROM users WHERE username = $1",
-		username).Scan(&id)
-	if err != nil && err != sql.ErrNoRows {
-		log.Fatalf("error checking if row exists %v", err)
-	}
-	return id
-}
-
 func (user User) userGetSystemName() string {
 	var systemName string
 	err := db.QueryRow(`SELECT name 

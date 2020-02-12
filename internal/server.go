@@ -165,6 +165,7 @@ func Run() {
 				return jwt.MapClaims{
 					"username":   v.Username,
 					"systemName": v.SystemName,
+					"user_id":    v.ID,
 				}
 			}
 			return jwt.MapClaims{}
@@ -249,8 +250,13 @@ func Run() {
 		var command Command
 		var user User
 		claims := jwt.ExtractClaims(c)
-		username := claims["username"].(string)
-		command.User.ID = userGetId(username)
+		switch claims["user_id"].(type) {
+		case float64:
+			command.User.ID = uint(claims["user_id"].(float64))
+
+		default:
+			command.User.ID = claims["user_id"].(uint)
+		}
 
 		if c.Param("path") == "search" {
 			command.Limit = 100
@@ -295,8 +301,14 @@ func Run() {
 			return
 		}
 		claims := jwt.ExtractClaims(c)
-		username := claims["username"].(string)
-		command.User.ID = userGetId(username)
+		switch claims["user_id"].(type) {
+		case float64:
+			command.User.ID = uint(claims["user_id"].(float64))
+
+		default:
+			command.User.ID = claims["user_id"].(uint)
+		}
+
 		command.SystemName = claims["systemName"].(string)
 		command.commandInsert()
 	})
@@ -304,8 +316,13 @@ func Run() {
 	r.DELETE("/api/v1/command/:uuid", func(c *gin.Context) {
 		var command Command
 		claims := jwt.ExtractClaims(c)
-		username := claims["username"].(string)
-		command.User.ID = userGetId(username)
+		switch claims["user_id"].(type) {
+		case float64:
+			command.User.ID = uint(claims["user_id"].(float64))
+
+		default:
+			command.User.ID = claims["user_id"].(uint)
+		}
 		command.Uuid = c.Param("uuid")
 		command.commandDelete()
 	})
@@ -317,8 +334,13 @@ func Run() {
 			log.Fatal(err)
 		}
 		claims := jwt.ExtractClaims(c)
-		username := claims["username"].(string)
-		system.User.ID = userGetId(username)
+		switch claims["user_id"].(type) {
+		case float64:
+			system.User.ID = uint(claims["user_id"].(float64))
+
+		default:
+			system.User.ID = claims["user_id"].(uint)
+		}
 
 		system.systemInsert()
 		c.AbortWithStatus(201)
@@ -332,10 +354,16 @@ func Run() {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
-		username := claims["username"].(string)
-		system.User.ID = userGetId(username)
+		switch claims["user_id"].(type) {
+		case float64:
+			system.User.ID = uint(claims["user_id"].(float64))
+
+		default:
+			system.User.ID = claims["user_id"].(uint)
+		}
+
 		system.Mac = mac
-		result, err  := system.systemGet()
+		result, err := system.systemGet()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -347,9 +375,14 @@ func Run() {
 	r.GET("/api/v1/client-view/status", func(c *gin.Context) {
 		var status Status
 		claims := jwt.ExtractClaims(c)
-		username := claims["username"].(string)
-		status.Username = username
-		status.User.ID = userGetId(username)
+		switch claims["user_id"].(type) {
+		case float64:
+			status.User.ID = uint(claims["user_id"].(float64))
+
+		default:
+			status.User.ID = claims["user_id"].(uint)
+		}
+
 		status.SessionName = c.Query("processId")
 		t, err := strconv.Atoi(c.Query("startTime"))
 		if err != nil {
