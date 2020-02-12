@@ -276,15 +276,19 @@ func Run() {
 			command.Query = c.Query("query")
 			command.SystemName = c.Query("systemName")
 
-			result := command.commandGet()
-			if len(result) == 0 {
-				c.JSON(http.StatusOK, gin.H{})
+			result, err := command.commandGet()
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
 			c.IndentedJSON(http.StatusOK, result)
 		} else {
 			command.Uuid = c.Param("path")
-			result := command.commandGetUUID()
+			result, err := command.commandGetUUID()
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 			result.Username = user.Username
 			c.IndentedJSON(http.StatusOK, result)
 		}

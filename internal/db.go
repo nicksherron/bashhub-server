@@ -222,7 +222,7 @@ func (cmd Command) commandInsert() int64 {
 	return inserted
 }
 
-func (cmd Command) commandGet() []Query {
+func (cmd Command) commandGet() ([]Query, error) {
 	var results []Query
 	var rows *sql.Rows
 	var err error
@@ -436,22 +436,22 @@ func (cmd Command) commandGet() []Query {
 	}
 
 	if err != nil {
-		log.Println(err)
+	return []Query{}, nil
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var result Query
 		err = rows.Scan(&result.Command, &result.Uuid, &result.Created)
 		if err != nil {
-			log.Println(err)
+			return []Query{}, nil
 		}
 		results = append(results, result)
 	}
-	return results
+	return results, nil
 
 }
 
-func (cmd Command) commandGetUUID() Query {
+func (cmd Command) commandGetUUID() (Query, error) {
 	var result Query
 	err := db.QueryRow(`
 	SELECT "command","path", "created" , "uuid", "exit_status", "system_name" 
@@ -460,9 +460,9 @@ func (cmd Command) commandGetUUID() Query {
 	AND "user_id" = $2`, cmd.Uuid, cmd.User.ID).Scan(&result.Command, &result.Path, &result.Created, &result.Uuid,
 		&result.ExitStatus, &result.SystemName)
 	if err != nil {
-		log.Println(err)
+		return Query{}, err
 	}
-	return result
+	return result, nil
 }
 
 func (cmd Command) commandDelete() int64 {
