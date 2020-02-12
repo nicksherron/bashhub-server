@@ -158,3 +158,26 @@ goland
 ggpull
 ```
 
+### Transferring history from bashhub.com
+
+You can transfer your command history from one server to another with then ```bashhub-server transfer``` 
+command. Bashhub.com has a limit of 10 requests a seconds and you are limited to your last 10,000 commands.
+
+```
+$ bashhub-server transfer \
+    --src-user 'user' \
+    --src-pass 'password' \
+    --dst-user 'user' \
+    --dst-pass 'password' 
+
+transferring 872 / 8909 [-->____________________] 9.79% 45 inserts/sec
+```
+
+
+
+
+
+
+
+
+ 
