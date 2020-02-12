@@ -162,7 +162,7 @@ ggpull
 ### Transferring history from bashhub.com
 
 You can transfer your command history from one server to another with then ```bashhub-server transfer``` 
-command. Bashhub.com has a limit of 10 requests a seconds and you are limited to your last 10,000 commands.
+command.
 
 ```
 $ bashhub-server transfer \
@@ -174,6 +174,7 @@ $ bashhub-server transfer \
 transferring 872 / 8909 [-->____________________] 9.79% 45 inserts/sec
 ```
 
+ If you're transferring from Bashhub.com they a limit of 10 requests a seconds and you are limited to your last 10,000 commands.
 
 
 
