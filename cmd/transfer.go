@@ -118,13 +118,13 @@ var (
 
 func init() {
 	rootCmd.AddCommand(transferCmd)
-	transferCmd.PersistentFlags().StringVar(&srcURL, "src-url", "https://bashhub.com", "source url")
+	transferCmd.PersistentFlags().StringVar(&srcURL, "src-url", "https://bashhub.com", "source url ")
 	transferCmd.PersistentFlags().StringVar(&srcUser, "src-user", "", "source username")
 	transferCmd.PersistentFlags().StringVar(&srcPass, "src-pass", "", "source password")
 	transferCmd.PersistentFlags().StringVar(&dstURL, "dst-url", "http://localhost:8080", "destination url")
 	transferCmd.PersistentFlags().StringVar(&dstUser, "dst-user", "", "destination username")
 	transferCmd.PersistentFlags().StringVar(&dstPass, "dst-pass", "", "destination password")
-	transferCmd.PersistentFlags().BoolVarP(&progress, "progress", "p", false, "show progress bar")
+	transferCmd.PersistentFlags().BoolVarP(&progress, "quiet", "q", false, "don't show progress bar")
 	transferCmd.PersistentFlags().IntVarP(&workers, "workers", "w", 10, "max number of concurrent requests")
 }
 
