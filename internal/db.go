@@ -158,6 +158,18 @@ func (user User) userExists() bool {
 	return false
 }
 
+func (user User) userGetID() uint {
+	var id uint
+	err := db.QueryRow(`SELECT "id" 
+							FROM users 
+							WHERE "username"  = $1`,
+		user.Username).Scan(&id)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatalf("error checking if row exists %v", err)
+	}
+	return id
+}
+
 func (user User) userGetSystemName() string {
 	var systemName string
 	err := db.QueryRow(`SELECT name 
@@ -436,7 +448,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 	}
 
 	if err != nil {
-	return []Query{}, nil
+		return []Query{}, nil
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -477,6 +489,24 @@ func (cmd Command) commandDelete() int64 {
 	}
 	return inserted
 
+}
+func (sys System) systemUpdate() int64 {
+
+	t := time.Now().Unix()
+	res, err := db.Exec(`
+	UPDATE systems 
+		SET "hostname" = $1 , "updated" = $3
+		WHERE "user_id" = $2
+		AND "mac" = $3`,
+		sys.Hostname, t, sys.User.ID, sys.Mac)
+	if err != nil {
+		log.Fatal(err)
+	}
+	inserted, err := res.RowsAffected()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return inserted
 }
 
 func (sys System) systemInsert() int64 {
@@ -539,13 +569,13 @@ func (status Status) statusGet() (Status, error) {
 	return status, err
 }
 
-func importCommands(q Query) {
+func importCommands(imp Import) {
 	_, err := db.Exec(`INSERT INTO commands 
 							("command", "path", "created", "uuid", "exit_status",
 							 "system_name", "session_id", "user_id" )
 							 VALUES ($1,$2,$3,$4,$5,$6,$7,(select "id" from users where "username" = $8)) ON CONFLICT do nothing`,
-		q.Command, q.Path, q.Created, q.Uuid, q.ExitStatus,
-		q.SystemName, q.SessionID, q.Username)
+		imp.Command, imp.Path, imp.Created, imp.Uuid, imp.ExitStatus,
+		imp.SystemName, imp.SessionID, imp.Username)
 	if err != nil {
 		log.Println(err)
 	}

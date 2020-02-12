@@ -99,6 +99,7 @@ type Config struct {
 	ID      int
 	Created time.Time
 }
+type Import Query
 
 var (
 	// Addr is the listen and server address for our server (gin)
@@ -172,9 +173,18 @@ func Run() {
 		},
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
+			var id uint
+			switch claims["user_id"].(type) {
+			case float64:
+				id = uint(claims["user_id"].(float64))
+
+			default:
+				id = claims["user_id"].(uint)
+			}
 			return &User{
 				Username:   claims["username"].(string),
 				SystemName: claims["systemName"].(string),
+				ID:         id,
 			}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
@@ -187,6 +197,7 @@ func Run() {
 				return &User{
 					Username:   user.Username,
 					SystemName: user.userGetSystemName(),
+					ID: user.userGetID(),
 				}, nil
 			}
 			fmt.Println("failed")
@@ -315,6 +326,7 @@ func Run() {
 
 		command.SystemName = claims["systemName"].(string)
 		command.commandInsert()
+		c.AbortWithStatus(http.StatusOK)
 	})
 
 	r.DELETE("/api/v1/command/:uuid", func(c *gin.Context) {
@@ -329,13 +341,16 @@ func Run() {
 		}
 		command.Uuid = c.Param("uuid")
 		command.commandDelete()
+		c.AbortWithStatus(http.StatusOK)
+
 	})
 
 	r.POST("/api/v1/system", func(c *gin.Context) {
 		var system System
 		err := c.Bind(&system)
 		if err != nil {
-			log.Fatal(err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 		claims := jwt.ExtractClaims(c)
 		switch claims["user_id"].(type) {
@@ -353,11 +368,6 @@ func Run() {
 	r.GET("/api/v1/system", func(c *gin.Context) {
 		var system System
 		claims := jwt.ExtractClaims(c)
-		mac := c.Query("mac")
-		if mac == "" {
-			c.AbortWithStatus(http.StatusBadRequest)
-			return
-		}
 		switch claims["user_id"].(type) {
 		case float64:
 			system.User.ID = uint(claims["user_id"].(float64))
@@ -365,7 +375,11 @@ func Run() {
 		default:
 			system.User.ID = claims["user_id"].(uint)
 		}
-
+		mac := c.Query("mac")
+		if mac == "" {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
 		system.Mac = mac
 		result, err := system.systemGet()
 		if err != nil {
@@ -374,6 +388,26 @@ func Run() {
 		}
 		c.IndentedJSON(http.StatusOK, result)
 
+	})
+
+	r.PATCH("/api/v1/system/:mac", func(c *gin.Context) {
+		var system System
+		err := c.Bind(&system)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		claims := jwt.ExtractClaims(c)
+		switch claims["user_id"].(type) {
+		case float64:
+			system.User.ID = uint(claims["user_id"].(float64))
+
+		default:
+			system.User.ID = claims["user_id"].(uint)
+		}
+		system.Mac = c.Param("mac")
+		system.systemUpdate()
+		c.AbortWithStatus(http.StatusOK)
 	})
 
 	r.GET("/api/v1/client-view/status", func(c *gin.Context) {
@@ -412,14 +446,15 @@ func Run() {
 	})
 
 	r.POST("/api/v1/import", func(c *gin.Context) {
-		var query Query
-		if err := c.ShouldBindJSON(&query); err != nil {
+		var imp Import
+		if err := c.ShouldBindJSON(&imp); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		claims := jwt.ExtractClaims(c)
-		query.Username = claims["username"].(string)
-		importCommands(query)
+		imp.Username = claims["username"].(string)
+		importCommands(imp)
+		c.AbortWithStatus(http.StatusOK)
 	})
 
 	Addr = strings.ReplaceAll(Addr, "http://", "")
@@ -428,4 +463,5 @@ func Run() {
 	if err != nil {
 		fmt.Println("Error: \t", err)
 	}
+
 }

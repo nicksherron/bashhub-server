@@ -55,10 +55,10 @@ var (
 	srcToken      string
 	dstToken      string
 	sysRegistered bool
-	workers		  int
+	workers       int
 	wg            sync.WaitGroup
 	cmdList       commandsList
-	transferCmd    = &cobra.Command{
+	transferCmd   = &cobra.Command{
 		Use:   "transfer",
 		Short: "transfer bashhub history ",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -73,12 +73,15 @@ var (
 				bar = pb.ProgressBarTemplate(barTemplate).Start(len(cmdList)).SetMaxWidth(70)
 				bar.Set("message", "inserting records \t")
 			}
+			client := &http.Client{}
 			for _, v := range cmdList {
+				//commandLookup(v.UUID, client)
+				//}
 				wg.Add(1)
 				counter++
 				go func(c cList) {
 					defer wg.Done()
-					commandLookup(c.UUID)
+					commandLookup(c.UUID, client)
 				}(v)
 				if counter > workers {
 					wg.Wait()
@@ -276,7 +279,7 @@ func getCommandList() commandsList {
 	return result
 }
 
-func commandLookup(uuid string) {
+func commandLookup(uuid string, client *http.Client) {
 	u := strings.TrimSpace(srcURL) + "/api/v1/command/" + strings.TrimSpace(uuid)
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
@@ -285,13 +288,19 @@ func commandLookup(uuid string) {
 
 	req.Header.Add("Authorization", srcToken)
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
 
 	if err != nil {
 		log.Println("Error on response.\n", err)
 	}
 
+	//defer func() {
+	//	err = resp.Body.Close()
+	//	if err !=  nil {
+	//		log.Println(err)
+	//	}
+	//
+	//}()
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		log.Fatalf("failed command lookup from %v, go status code %v", srcURL, resp.StatusCode)
@@ -300,10 +309,10 @@ func commandLookup(uuid string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	srcSend(body)
+	srcSend(body, client)
 }
 
-func srcSend(data []byte) {
+func srcSend(data []byte, client *http.Client) {
 	defer func() {
 		if !progress {
 			bar.Add(1)
@@ -317,7 +326,6 @@ func srcSend(data []byte) {
 		log.Fatal(err)
 	}
 	req.Header.Add("Authorization", dstToken)
-	client := &http.Client{}
 	resp, err := client.Do(req)
 
 	if err != nil {
