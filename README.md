@@ -68,7 +68,7 @@ Just run the server
 $ bashhub-server
 
  _               _     _           _
-| |             | |   | |         | |		version: v0.1.1
+| |             | |   | |         | |		version: v0.2.1
 | |__   __ _ ___| |__ | |__  _   _| |		address: http://0.0.0.0:8080
 | '_ \ / _' / __| '_ \| '_ \| | | | '_ \
 | |_) | (_| \__ \ | | | | | | |_| | |_) |
@@ -88,7 +88,7 @@ $ docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server
 ```
 Then add ```export BH_URL=http://localhost:8080``` (or whatever you set your bashhub-server address to) to your .zshrc or .bashrc 
 ```
-echo "export BH_URL=http://localhost:8080" >> ~/.bashrc
+$ echo "export BH_URL=http://localhost:8080" >> ~/.bashrc
 ```
 or 
 ```
@@ -142,7 +142,7 @@ bashhub-server --help
 ```
 With regex
 ```
-$ bh '^bash'
+$ bh "^bash"
 
 bashhub setup
 bashhub-server version
