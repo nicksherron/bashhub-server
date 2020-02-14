@@ -7,4 +7,4 @@ env:
 
 install: true
 
-script: go test ./...
+script: go test github.com/nicksherron/bashhub-server/internal

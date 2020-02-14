@@ -130,10 +130,8 @@ func loggerWithFormatterWriter(f gin.LogFormatter) gin.HandlerFunc {
 }
 
 // configure routes and middleware
-func SetupRouter() *gin.Engine {
-	// Initialize backend
+func setupRouter() *gin.Engine {
 	dbInit()
-
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -461,7 +459,7 @@ func SetupRouter() *gin.Engine {
 
 // Run starts server
 func Run() {
-	r := SetupRouter()
+	r := setupRouter()
 
 	Addr = strings.ReplaceAll(Addr, "http://", "")
 	err := r.Run(Addr)

@@ -55,7 +55,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize()
 	rootCmd.PersistentFlags().StringVar(&internal.LogFile, "log", "", `Set filepath for HTTP log. "" logs to stderr`)
-	rootCmd.PersistentFlags().StringVar(&internal.DbPath, "db", dbPath(), "DB location (sqlite or postgres)")
+	rootCmd.PersistentFlags().StringVar(&internal.DbPath, "db", sqlitePath(), "db location (sqlite or postgres)")
 	rootCmd.PersistentFlags().StringVarP(&internal.Addr, "addr", "a", listenAddr(), "Ip and port to listen and serve on")
 
 }
@@ -92,7 +92,7 @@ func listenAddr() string {
 
 }
 
-func dbPath() string {
+func sqlitePath() string {
 	dbFile := "data.db"
 	f := filepath.Join(appDir(), dbFile)
 	return f

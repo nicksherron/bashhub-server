@@ -61,18 +61,9 @@ clean:
 	@test ! -e bin/${BIN_NAME} || rm bin/${BIN_NAME}
 
 test:
-	go test -v ./...
-
-docker-postgres-stop:
-	docker stop  bashhub-postgres-test
-
-docker-postgres-start:
-	docker run -d --rm --name bashhub-postgres-test -p 5444:5432 postgres
+	go test github.com/nicksherron/bashhub-server/internal
 
 test-postgres:
-	go test -v ./... -postgres -postgres-uri "postgres://postgres:@localhost:5444?sslmode=disable"
-
-test-docker-postgres: docker-postgres-stop docker-postgres-start test-postgres
-
+	scripts/test_postgres.sh
 
 

@@ -38,8 +38,7 @@ import (
 )
 
 var (
-	//DB is a connection pool to sqlite or postgres
-	DB *sql.DB
+	db *sql.DB
 	// DbPath is the postgres connection uri or the sqlite db file location to use for backend.
 	DbPath          string
 	connectionLimit int
@@ -53,7 +52,7 @@ func dbInit() {
 	if strings.HasPrefix(DbPath, "postgres://") {
 		// postgres
 
-		DB, err = sql.Open("postgres", DbPath)
+		db, err = sql.Open("postgres", DbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -83,16 +82,16 @@ func dbInit() {
 			})
 
 		DbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc&_loc=auto", DbPath)
-		DB, err = sql.Open("sqlite3_with_regex", DbPath)
+		db, err = sql.Open("sqlite3_with_regex", DbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		DB.Exec("PRAGMA journal_mode=WAL;")
+		db.Exec("PRAGMA journal_mode=WAL;")
 		connectionLimit = 1
 
 	}
-	DB.SetMaxOpenConns(connectionLimit)
+	db.SetMaxOpenConns(connectionLimit)
 	gormdb.AutoMigrate(&User{})
 	gormdb.AutoMigrate(&Command{})
 	gormdb.AutoMigrate(&System{})
@@ -113,19 +112,19 @@ func dbInit() {
 func (c Config) getSecret() string {
 	var err error
 	if connectionLimit != 1 {
-		_, err = DB.Exec(`INSERT INTO configs ("id","created", "secret") 
+		_, err = db.Exec(`INSERT INTO configs ("id","created", "secret") 
 						VALUES (1, now(), (SELECT md5(random()::text)))
 						ON conflict do nothing;`)
 
 	} else {
-		_, err = DB.Exec(`INSERT INTO configs ("id","created" ,"secret") 
+		_, err = db.Exec(`INSERT INTO configs ("id","created" ,"secret") 
 						VALUES (1, current_timestamp, lower(hex(randomblob(16)))) 
 						ON conflict do nothing;`)
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = DB.QueryRow(`SELECT "secret" from configs where "id" = 1 `).Scan(&c.Secret)
+	err = db.QueryRow(`SELECT "secret" from configs where "id" = 1 `).Scan(&c.Secret)
 	return c.Secret
 }
 
@@ -149,7 +148,7 @@ func comparePasswords(hashedPwd string, plainPwd string) bool {
 
 func (user User) userExists() bool {
 	var password string
-	err := DB.QueryRow("SELECT password FROM users WHERE username = $1",
+	err := db.QueryRow("SELECT password FROM users WHERE username = $1",
 		user.Username).Scan(&password)
 	if err != nil && err != sql.ErrNoRows {
 		log.Fatalf("error checking if row exists %v", err)
@@ -162,7 +161,7 @@ func (user User) userExists() bool {
 
 func (user User) userGetID() uint {
 	var id uint
-	err := DB.QueryRow(`SELECT "id" 
+	err := db.QueryRow(`SELECT "id" 
 							FROM users 
 							WHERE "username"  = $1`,
 		user.Username).Scan(&id)
@@ -174,7 +173,7 @@ func (user User) userGetID() uint {
 
 func (user User) userGetSystemName() string {
 	var systemName string
-	err := DB.QueryRow(`SELECT name 
+	err := db.QueryRow(`SELECT name 
 							FROM systems 
 							WHERE user_id in (select id from users where username = $1)
 							AND mac = $2`,
@@ -187,7 +186,7 @@ func (user User) userGetSystemName() string {
 
 func (user User) usernameExists() bool {
 	var exists bool
-	err := DB.QueryRow(`SELECT exists (select id FROM users WHERE "username" = $1)`,
+	err := db.QueryRow(`SELECT exists (select id FROM users WHERE "username" = $1)`,
 		user.Username).Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
 		log.Fatalf("error checking if row exists %v", err)
@@ -197,7 +196,7 @@ func (user User) usernameExists() bool {
 
 func (user User) emailExists() bool {
 	var exists bool
-	err := DB.QueryRow(`SELECT exists (select id FROM users WHERE "email" = $1)`,
+	err := db.QueryRow(`SELECT exists (select id FROM users WHERE "email" = $1)`,
 		user.Email).Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
 		log.Fatalf("error checking if row exists %v", err)
@@ -207,7 +206,7 @@ func (user User) emailExists() bool {
 
 func (user User) userCreate() int64 {
 	user.Password = hashAndSalt(user.Password)
-	res, err := DB.Exec(`INSERT INTO users("registration_code", "username","password","email")
+	res, err := db.Exec(`INSERT INTO users("registration_code", "username","password","email")
  							 VALUES ($1,$2,$3,$4) ON CONFLICT(username) do nothing`, user.RegistrationCode,
 		user.Username, user.Password, user.Email)
 	if err != nil {
@@ -222,7 +221,7 @@ func (user User) userCreate() int64 {
 
 func (cmd Command) commandInsert() int64 {
 
-	res, err := DB.Exec(`
+	res, err := db.Exec(`
 	INSERT INTO commands("process_id","process_start_time","exit_status","uuid","command", "created", "path", "user_id", "system_name")
  	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT do nothing`,
 		cmd.ProcessId, cmd.ProcessStartTime, cmd.ExitStatus, cmd.Uuid, cmd.Command, cmd.Created, cmd.Path, cmd.User.ID, cmd.SystemName)
@@ -254,7 +253,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 			       	AND "system_name" = '%v'								
 			       	AND "command" ~ '%v'
 			        ) c
-			    ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.SystemName, cmd.Query, cmd.Limit,)
+			    ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.SystemName, cmd.Query, cmd.Limit)
 
 			} else if cmd.Path != "" && cmd.Query != "" && cmd.Unique {
 				query = fmt.Sprintf(`
@@ -448,7 +447,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 	if QueryDebug {
 		fmt.Println(query)
 	}
-	rows, err := DB.Query(query)
+	rows, err := db.Query(query)
 
 	if err != nil {
 		return []Query{}, err
@@ -468,7 +467,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 
 func (cmd Command) commandGetUUID() (Query, error) {
 	var result Query
-	err := DB.QueryRow(`
+	err := db.QueryRow(`
 	SELECT "command","path", "created" , "uuid", "exit_status", "system_name" 
 		FROM commands
 		WHERE "uuid" = $1 
@@ -481,7 +480,7 @@ func (cmd Command) commandGetUUID() (Query, error) {
 }
 
 func (cmd Command) commandDelete() int64 {
-	res, err := DB.Exec(`
+	res, err := db.Exec(`
 	DELETE FROM commands WHERE "user_id" = $1 AND "uuid" = $2 `, cmd.User.ID, cmd.Uuid)
 	if err != nil {
 		log.Fatal(err)
@@ -497,7 +496,7 @@ func (cmd Command) commandDelete() int64 {
 func (sys System) systemUpdate() int64 {
 
 	t := time.Now().Unix()
-	res, err := DB.Exec(`
+	res, err := db.Exec(`
 	UPDATE systems 
 		SET "hostname" = $1 , "updated" = $2
 		WHERE "user_id" = $3
@@ -516,7 +515,7 @@ func (sys System) systemUpdate() int64 {
 func (sys System) systemInsert() int64 {
 
 	t := time.Now().Unix()
-	res, err := DB.Exec(`INSERT INTO systems ("name", "mac", "user_id", "hostname", "client_version", "created", "updated")
+	res, err := db.Exec(`INSERT INTO systems ("name", "mac", "user_id", "hostname", "client_version", "created", "updated")
  									  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		sys.Name, sys.Mac, sys.User.ID, sys.Hostname, sys.ClientVersion, t, t)
 	if err != nil {
@@ -531,7 +530,7 @@ func (sys System) systemInsert() int64 {
 
 func (sys System) systemGet() (System, error) {
 	var row System
-	err := DB.QueryRow(`SELECT "name", "mac", "user_id", "hostname", "client_version",
+	err := db.QueryRow(`SELECT "name", "mac", "user_id", "hostname", "client_version",
  									  "id", "created", "updated" FROM systems 
  							  WHERE  "user_id" = $1
  							  AND "mac" = $2`,
@@ -547,7 +546,7 @@ func (sys System) systemGet() (System, error) {
 func (status Status) statusGet() (Status, error) {
 	var err error
 	if connectionLimit != 1 {
-		err = DB.QueryRow(`select
+		err = db.QueryRow(`select
       									( select count(*) from commands where user_id = $1) as totalCommands,
       									( select count(distinct process_id) from commands where user_id = $1) as totalSessions,
       									( select count(distinct system_name) from commands where user_id = $1) as totalSystems,
@@ -557,7 +556,7 @@ func (status Status) statusGet() (Status, error) {
 			&status.TotalCommands, &status.TotalSessions, &status.TotalSystems,
 			&status.TotalCommandsToday, &status.SessionTotalCommands)
 	} else {
-		err = DB.QueryRow(`select
+		err = db.QueryRow(`select
       									( select count(*) from commands where user_id = $1) as totalCommands,
       									( select count(distinct process_id) from commands where user_id = $1) as totalSessions,
       									( select count(distinct system_name) from commands where user_id = $1) as totalSystems,
@@ -574,7 +573,7 @@ func (status Status) statusGet() (Status, error) {
 }
 
 func importCommands(imp Import) {
-	_, err := DB.Exec(`INSERT INTO commands 
+	_, err := db.Exec(`INSERT INTO commands 
 							("command", "path", "created", "uuid", "exit_status",
 							 "system_name", "session_id", "user_id" )
 							 VALUES ($1,$2,$3,$4,$5,$6,$7,(select "id" from users where "username" = $8)) ON CONFLICT do nothing`,
