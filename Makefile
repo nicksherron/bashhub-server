@@ -63,3 +63,16 @@ clean:
 test:
 	go test -v ./...
 
+docker-postgres-stop:
+	docker stop  bashhub-postgres-test
+
+docker-postgres-start:
+	docker run -d --rm --name bashhub-postgres-test -p 5444:5432 postgres
+
+test-postgres:
+	go test -v ./... -postgres -postgres-uri "postgres://postgres:@localhost:5444?sslmode=disable"
+
+test-docker-postgres: docker-postgres-stop docker-postgres-start test-postgres
+
+
+

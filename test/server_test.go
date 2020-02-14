@@ -21,6 +21,7 @@ package test
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -43,16 +44,34 @@ var (
 	router        *gin.Engine
 	sysRegistered bool
 	jwtToken      string
-	user          = "tester"
-	pass          = "tester"
-	mac           = "888888888888888"
+	db            = flag.String("db", sqliteDB(), "db path")
+	postgres      = flag.Bool("postgres", false, "run postgres tests")
+	postgresUri   = flag.String("postgres-uri", "postgres://postgres:@localhost:5444?sslmode=disable", "postgres uri to use for postgres tests")
 )
+
+const (
+	system  = "system"
+	user    = "tester"
+	pass    = "tester"
+	mac     = "888888888888888"
+	email   = "test@email.com"
+	testdir = "testdata"
+)
+
+func sqliteDB() string {
+	return filepath.Join(dir, "testdata/test.db")
+}
+func check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 func createUser(t *testing.T) {
 	auth := map[string]interface{}{
 		"Username": user,
 		"password": pass,
-		"email":    "test@email.com",
+		"email":    email,
 	}
 
 	payloadBytes, err := json.Marshal(auth)
@@ -118,14 +137,12 @@ func sysRegister(t *testing.T, token string) string {
 	}
 	sys := map[string]interface{}{
 		"clientVersion": "1.2.0",
-		"name":          "test-system",
+		"name":          system,
 		"hostname":      host,
 		"mac":           mac,
 	}
 	payloadBytes, err := json.Marshal(sys)
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 
 	body := bytes.NewReader(payloadBytes)
 
@@ -145,24 +162,35 @@ func sysRegister(t *testing.T, token string) string {
 }
 
 func TestMain(m *testing.M) {
-	err := os.RemoveAll("testdata")
-	if err != nil {
-		log.Fatal(err)
+
+	flag.Parse()
+
+	if *db == sqliteDB() {
+
+		err := os.RemoveAll(testdir)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = os.Mkdir(testdir, 0700)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+	var err error
 	dir, err = os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = os.Mkdir("testdata", 0700)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	internal.DbPath = filepath.Join(dir, "test.db")
-
+	internal.DbPath = *db
 	router = internal.SetupRouter()
-
 	m.Run()
+
+	if *postgres {
+		internal.DbPath = *postgresUri
+		router = internal.SetupRouter()
+		m.Run()
+	}
 }
 
 func TestToken(t *testing.T) {
@@ -221,9 +249,75 @@ func TestCommand(t *testing.T) {
 			assert.Equal(t, 200, w.Code)
 		}
 	}
+
+	var allQueries = map[string]string{
+		"unique":     "true",
+		"limit":      "1",
+		"query":      "curl",
+		"path":       dir,
+		"systemName": system,
+	}
+	var queryTests []url.Values
+	allQuery := url.Values{}
+
+	for keyP, valP := range allQueries {
+		allQuery.Add(keyP, valP)
+
+		for kepC, valC := range allQueries {
+			if keyP == kepC {
+				continue
+			}
+			v := url.Values{}
+			v.Add(kepC, valC)
+			v.Add(keyP, valP)
+			queryTests = append(queryTests, v)
+		}
+
+	}
+
 	func() {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/api/v1/command/search?unique=true", nil)
+		u := fmt.Sprintf("/api/v1/command/search?%v", allQuery.Encode())
+		req, _ := http.NewRequest("GET", u, nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Add("Authorization", jwtToken)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, 200, w.Code)
+	}()
+
+	for _, v := range queryTests {
+		func() {
+			w := httptest.NewRecorder()
+			u := fmt.Sprintf("/api/v1/command/search?%v", v.Encode())
+			req, _ := http.NewRequest("GET", u, nil)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Add("Authorization", jwtToken)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, 200, w.Code)
+			b, err := ioutil.ReadAll(w.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var data []internal.Query
+			err = json.Unmarshal(b, &data)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.GreaterOrEqual(t, len(data), 1)
+			assert.Contains(t, system, data[0].SystemName)
+			assert.Contains(t, dir, data[0].Path)
+		}()
+	}
+
+
+
+	func() {
+		w := httptest.NewRecorder()
+		v := url.Values{}
+		v.Add("unique", "true")
+		u := fmt.Sprintf("/api/v1/command/search?%v", v.Encode())
+		req, _ := http.NewRequest("GET", u, nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Add("Authorization", jwtToken)
 		router.ServeHTTP(w, req)
@@ -259,7 +353,11 @@ func TestCommand(t *testing.T) {
 	}()
 	func() {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/api/v1/command/search?query=%5Ecurl&unique=true", nil)
+		v := url.Values{}
+		v.Add("query", "curl")
+		v.Add("unique", "true")
+		u := fmt.Sprintf("/api/v1/command/search?%v", v.Encode())
+		req, _ := http.NewRequest("GET", u, nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Add("Authorization", jwtToken)
 		router.ServeHTTP(w, req)
@@ -277,7 +375,11 @@ func TestCommand(t *testing.T) {
 	}()
 	func() {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/api/v1/command/search?unique=true&systemName=test-system", nil)
+		v := url.Values{}
+		v.Add("unique", "true")
+		v.Add("systemName", system)
+		u := fmt.Sprintf("/api/v1/command/search?%v", v.Encode())
+		req, _ := http.NewRequest("GET", u, nil)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Add("Authorization", jwtToken)
 		router.ServeHTTP(w, req)
@@ -296,8 +398,8 @@ func TestCommand(t *testing.T) {
 	func() {
 		w := httptest.NewRecorder()
 		v := url.Values{}
-		v.Add("unique", "true")
 		v.Add("path", dir)
+		v.Add("unique", "true")
 		u := fmt.Sprintf("/api/v1/command/search?%v", v.Encode())
 		req, _ := http.NewRequest("GET", u, nil)
 		req.Header.Set("Content-Type", "application/json")
@@ -314,5 +416,76 @@ func TestCommand(t *testing.T) {
 			t.Fatal(err)
 		}
 		assert.Equal(t, 10, len(data))
+	}()
+	var record internal.Command
+
+	func() {
+		w := httptest.NewRecorder()
+		v := url.Values{}
+		v.Add("limit","1")
+		v.Add("unique", "true")
+		u := fmt.Sprintf("/api/v1/command/search?%v", v.Encode())
+		req, _ := http.NewRequest("GET", u, nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Add("Authorization", jwtToken)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, 200, w.Code)
+		b, err := ioutil.ReadAll(w.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var data []internal.Command
+		err = json.Unmarshal(b, &data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, 1, len(data))
+		record = data[0]
+	}()
+	func() {
+		w := httptest.NewRecorder()
+		u := fmt.Sprintf("/api/v1/command/%v", record.Uuid)
+		req, _ := http.NewRequest("GET", u, nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Add("Authorization", jwtToken)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, 200, w.Code)
+		b, err := ioutil.ReadAll(w.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var data internal.Command
+		err = json.Unmarshal(b, &data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, record.Uuid, data.Uuid)
+	}()
+	func() {
+		w := httptest.NewRecorder()
+		u := fmt.Sprintf("/api/v1/command/%v", record.Uuid)
+		req, _ := http.NewRequest("DELETE", u, nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Add("Authorization", jwtToken)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, 200, w.Code)
+	}()
+	func() {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/api/v1/command/search?", nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Add("Authorization", jwtToken)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, 200, w.Code)
+		b, err := ioutil.ReadAll(w.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var data []internal.Command
+		err = json.Unmarshal(b, &data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, 49, len(data))
 	}()
 }

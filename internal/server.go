@@ -278,10 +278,9 @@ func SetupRouter() *gin.Engine {
 					command.Limit = num
 				}
 			}
+			command.Unique = false
 			if c.Query("unique") == "true" {
 				command.Unique = true
-			} else {
-				command.Unique = false
 			}
 			command.Path = c.Query("path")
 			command.Query = c.Query("query")
