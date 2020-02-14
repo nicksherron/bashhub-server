@@ -4,3 +4,4 @@ dist
 dist.bk
 internal/test_data
 scripts/local
+test/testdata
