@@ -222,7 +222,7 @@ func (cmd Command) commandInsert() int64 {
 
 	res, err := db.Exec(`
 	INSERT INTO commands("process_id","process_start_time","exit_status","uuid","command", "created", "path", "user_id", "system_name")
- 	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+ 	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT do nothing`,
 		cmd.ProcessId, cmd.ProcessStartTime, cmd.ExitStatus, cmd.Uuid, cmd.Command, cmd.Created, cmd.Path, cmd.User.ID, cmd.SystemName)
 	if err != nil {
 		log.Fatal(err)

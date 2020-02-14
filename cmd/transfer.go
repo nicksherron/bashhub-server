@@ -186,6 +186,7 @@ func sysRegister(mac string, site string, user string, pass string) string {
 		"hostname":      host,
 		"mac":           mac,
 	}
+
 	payloadBytes, err := json.Marshal(sys)
 	if err != nil {
 		log.Fatal(err)

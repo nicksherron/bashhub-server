@@ -129,8 +129,8 @@ func loggerWithFormatterWriter(f gin.LogFormatter) gin.HandlerFunc {
 	})
 }
 
-// Run starts server
-func Run() {
+// configure routes and middleware
+func SetupRouter() *gin.Engine {
 	// Initialize backend
 	dbInit()
 
@@ -197,7 +197,7 @@ func Run() {
 				return &User{
 					Username:   user.Username,
 					SystemName: user.userGetSystemName(),
-					ID: user.userGetID(),
+					ID:         user.userGetID(),
 				}, nil
 			}
 			fmt.Println("failed")
@@ -457,8 +457,15 @@ func Run() {
 		c.AbortWithStatus(http.StatusOK)
 	})
 
+	return r
+}
+
+// Run starts server
+func Run() {
+	r := SetupRouter()
+
 	Addr = strings.ReplaceAll(Addr, "http://", "")
-	err = r.Run(Addr)
+	err := r.Run(Addr)
 
 	if err != nil {
 		fmt.Println("Error: \t", err)
