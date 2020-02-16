@@ -28,7 +28,7 @@ until [ "$(docker exec bashhub-postgres-test pg_isready \
     sleep 0.1;
 done;
 
-go test -v  github.com/nicksherron/bashhub-server/internal \
-  -postgres -postgres-uri "postgres://postgres:@localhost:5444?sslmode=disable"
+go test github.com/nicksherron/bashhub-server/internal \
+  -postgres-uri "postgres://postgres:@localhost:5444?sslmode=disable"
 
 docker stop -t 0 ${CONTAINER} & docker wait ${CONTAINER}

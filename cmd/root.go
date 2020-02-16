@@ -30,16 +30,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cfgFile string
-
 // rootCmd represents the base command when called without any subcommands
 var (
+	logFile string
+	dbPath  string
+	addr    string
 	rootCmd = &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)
 			checkBhEnv()
 			startupMessage()
-			internal.Run()
+			internal.Run(dbPath, logFile, addr)
 		},
 	}
 )
@@ -54,9 +55,9 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize()
-	rootCmd.PersistentFlags().StringVar(&internal.LogFile, "log", "", `Set filepath for HTTP log. "" logs to stderr`)
-	rootCmd.PersistentFlags().StringVar(&internal.DbPath, "db", sqlitePath(), "db location (sqlite or postgres)")
-	rootCmd.PersistentFlags().StringVarP(&internal.Addr, "addr", "a", listenAddr(), "Ip and port to listen and serve on")
+	rootCmd.PersistentFlags().StringVar(&logFile, "log", "", `Set filepath for HTTP log. "" logs to stderr`)
+	rootCmd.PersistentFlags().StringVar(&dbPath, "db", sqlitePath(), "db location (sqlite or postgres)")
+	rootCmd.PersistentFlags().StringVarP(&addr, "addr", "a", listenAddr(), "Ip and port to listen and serve on")
 
 }
 
@@ -74,10 +75,10 @@ func startupMessage() {
 \__ \  __/ |   \ V /  __/ |              
 |___/\___|_|    \_/ \___|_|              
                                                                                   
-`, Version, internal.Addr)
+`, Version, addr)
 	color.HiGreen(banner)
 	fmt.Print("\n")
-	log.Printf("Listening and serving HTTP on %v", internal.Addr)
+	log.Printf("Listening and serving HTTP on %v", addr)
 	fmt.Print("\n")
 }
 
@@ -118,7 +119,7 @@ func checkBhEnv() {
 		msg := fmt.Sprintf(`
 WARNING: BH_URL is set to https://bashhub.com on this machine
 If you will be running bashhub-client locally be sure to add
-export BH_URL=%v to your .bashrc or .zshrc`, internal.Addr)
+export BH_URL=%v to your .bashrc or .zshrc`, addr)
 		fmt.Println(msg)
 	}
 }

@@ -38,32 +38,29 @@ import (
 )
 
 var (
-	db *sql.DB
-	// DbPath is the postgres connection uri or the sqlite db file location to use for backend.
-	DbPath          string
+	db              *sql.DB
 	connectionLimit int
-	QueryDebug      bool
 )
 
-func dbInit() {
+func dbInit(dbPath string) {
 	var gormdb *gorm.DB
 	var err error
-	if strings.HasPrefix(DbPath, "postgres://") {
+	if strings.HasPrefix(dbPath, "postgres://") {
 		// postgres
 
-		db, err = sql.Open("postgres", DbPath)
+		db, err = sql.Open("postgres", dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		gormdb, err = gorm.Open("postgres", DbPath)
+		gormdb, err = gorm.Open("postgres", dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 		connectionLimit = 50
 	} else {
 		// sqlite
-		gormdb, err = gorm.Open("sqlite3", DbPath)
+		gormdb, err = gorm.Open("sqlite3", dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -80,13 +77,16 @@ func dbInit() {
 				},
 			})
 
-		DbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc&_loc=auto", DbPath)
-		db, err = sql.Open("sqlite3_with_regex", DbPath)
+		dbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc&_loc=auto", dbPath)
+		db, err = sql.Open("sqlite3_with_regex", dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		db.Exec("PRAGMA journal_mode=WAL;")
+		_, err = db.Exec("PRAGMA journal_mode=WAL;")
+		if err != nil {
+			log.Fatal(err)
+		}
 		connectionLimit = 1
 
 	}
@@ -366,9 +366,6 @@ func (cmd Command) commandGet() ([]Query, error) {
 					AND "system_name" = '%v' 
 					AND "command" regexp '%v'
 				ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.SystemName, cmd.Query, cmd.Limit)
-				if QueryDebug {
-					log.Println(query)
-				}
 
 			} else if cmd.Path != "" && cmd.Query != "" {
 				query = fmt.Sprintf(`
@@ -437,9 +434,6 @@ func (cmd Command) commandGet() ([]Query, error) {
 
 	}
 
-	if QueryDebug {
-		fmt.Println(query)
-	}
 	rows, err := db.Query(query)
 
 	if err != nil {
@@ -567,12 +561,13 @@ func (status Status) statusGet() (Status, error) {
 	return status, err
 }
 
-func importCommands(imp Import) {
+func importCommands(imp Import) error {
 	_, err := db.Exec(`
-	INSERT INTO commands "command", "path", "created", "uuid", "exit_status","system_name", "session_id", "user_id" )
-		VALUES ($1,$2,$3,$4,$5,$6,$7,(select "id" from users where "username" = $8))ON CONFLICT do nothing`,
+	INSERT INTO commands ("command", "path", "created", "uuid", "exit_status","system_name", "session_id", "user_id" )
+	VALUES ($1,$2,$3,$4,$5,$6,$7 ,(select "id" from users where "username" = $8)) ON CONFLICT do nothing`,
 		imp.Command, imp.Path, imp.Created, imp.Uuid, imp.ExitStatus, imp.SystemName, imp.SessionID, imp.Username)
 	if err != nil {
-		log.Println(err)
+		return err
 	}
+	return nil
 }

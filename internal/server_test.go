@@ -42,8 +42,7 @@ import (
 
 var (
 	testWork         = flag.Bool("testwork", false, "don't remove sqlite db and server log when done and print location")
-	postgres         = flag.Bool("postgres", false, "run postgres tests")
-	postgresUri      = flag.String("postgres-uri", "postgres://postgres:@localhost:5444?sslmode=disable", "postgres uri to use for postgres tests")
+	postgres         = flag.String("postgres-uri", "", "postgres uri to use for postgres tests")
 	sessionStartTime int64
 	pid              string
 	dir              string
@@ -73,10 +72,10 @@ func TestMain(m *testing.M) {
 	check(err)
 	dir = "/tmp/foo"
 
-	DbPath = filepath.Join(testDir, "test.db")
-	LogFile = filepath.Join(testDir, "server.log")
+	dbPath := filepath.Join(testDir, "test.db")
+	logFile := filepath.Join(testDir, "server.log")
 	log.Print("sqlite tests")
-	router = setupRouter()
+	router = setupRouter(dbPath, logFile)
 
 	system = sysStruct{
 		user:  "tester",
@@ -87,10 +86,11 @@ func TestMain(m *testing.M) {
 	}
 	m.Run()
 
-	if *postgres {
+	if *postgres != "" {
 		log.Print("postgres tests")
-		DbPath = *postgresUri
-		router = setupRouter()
+		dbPath := *postgres
+		logFile := filepath.Join(testDir, "postgres-server.log")
+		router = setupRouter(dbPath, logFile)
 		m.Run()
 	}
 
@@ -151,7 +151,8 @@ func getToken(t *testing.T) string {
 	}
 	j := make(map[string]interface{})
 
-	json.Unmarshal(buf, &j)
+	err = json.Unmarshal(buf, &j)
+	check(err)
 
 	if len(j) == 0 {
 		t.Fatal("login failed for  getToken")
@@ -373,11 +374,11 @@ func TestStatus(t *testing.T) {
 
 }
 
-
 func dirCleanup() {
 	if !*testWork {
-		os.Chmod(testDir, 0777)
-		err := os.RemoveAll(testDir)
+		err := os.Chmod(testDir, 0777)
+		check(err)
+		err = os.RemoveAll(testDir)
 		check(err)
 		return
 	}
