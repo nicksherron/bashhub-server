@@ -119,6 +119,6 @@ func checkBhEnv() {
 WARNING: BH_URL is set to https://bashhub.com on this machine
 If you will be running bashhub-client locally be sure to add
 export BH_URL=%v to your .bashrc or .zshrc`, internal.Addr)
-		fmt.Println(msg, "\n")
+		fmt.Println(msg)
 	}
 }
