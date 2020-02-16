@@ -20,6 +20,8 @@ package internal
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -103,42 +105,43 @@ type Import Query
 
 var (
 	// Addr is the listen and server address for our server (gin)
-	Addr string
+	//Addr string
 	// LogFile is the log file location for http logging. Default is stderr.
-	LogFile string
-	config  Config
+	//logFile string
+	config Config
 )
 
-func getLog() *os.File {
-
-	if LogFile != "" {
-		f, err := os.Create(LogFile)
+func getLog(logFile string) io.Writer {
+	switch {
+	case logFile == "/dev/null":
+		return ioutil.Discard
+	case logFile != "":
+		f, err := os.Create(logFile)
 		if err != nil {
 			log.Fatal(err)
 		}
 		return f
+	default:
+		return os.Stderr
 	}
-	return os.Stderr
 }
 
 // LoggerWithFormatter instance a Logger middleware with the specified log format function.
-func loggerWithFormatterWriter(f gin.LogFormatter) gin.HandlerFunc {
+func loggerWithFormatterWriter(logFile string, f gin.LogFormatter) gin.HandlerFunc {
 	return gin.LoggerWithConfig(gin.LoggerConfig{
 		Formatter: f,
-		Output:    getLog(),
+		Output:    getLog(logFile),
 	})
 }
 
-// Run starts server
-func Run() {
-	// Initialize backend
-	dbInit()
-
+// configure routes and middleware
+func setupRouter(dbPath string, logFile string) *gin.Engine {
+	dbInit(dbPath)
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
 
-	r.Use(loggerWithFormatterWriter(func(param gin.LogFormatterParams) string {
+	r.Use(loggerWithFormatterWriter(logFile, func(param gin.LogFormatterParams) string {
 		return fmt.Sprintf("[BASHHUB-SERVER] %v | %3d | %13v | %15s | %-7s  %s\n",
 			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
 			param.StatusCode,
@@ -197,7 +200,7 @@ func Run() {
 				return &User{
 					Username:   user.Username,
 					SystemName: user.userGetSystemName(),
-					ID: user.userGetID(),
+					ID:         user.userGetID(),
 				}, nil
 			}
 			fmt.Println("failed")
@@ -278,10 +281,9 @@ func Run() {
 					command.Limit = num
 				}
 			}
+			command.Unique = false
 			if c.Query("unique") == "true" {
 				command.Unique = true
-			} else {
-				command.Unique = false
 			}
 			command.Path = c.Query("path")
 			command.Query = c.Query("query")
@@ -452,13 +454,26 @@ func Run() {
 			return
 		}
 		claims := jwt.ExtractClaims(c)
-		imp.Username = claims["username"].(string)
-		importCommands(imp)
+		user := claims["username"].(string)
+		imp.Username = user
+		err = importCommands(imp)
+		if err != nil {
+			log.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		c.AbortWithStatus(http.StatusOK)
 	})
 
-	Addr = strings.ReplaceAll(Addr, "http://", "")
-	err = r.Run(Addr)
+	return r
+}
+
+// Run starts server
+func Run(dbFile string, logFile string, addr string) {
+	r := setupRouter(dbFile, logFile)
+
+	addr = strings.ReplaceAll(addr, "http://", "")
+	err := r.Run(addr)
 
 	if err != nil {
 		fmt.Println("Error: \t", err)

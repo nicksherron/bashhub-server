@@ -54,7 +54,7 @@ Available Commands:
 
 Flags:
   -a, --addr string   Ip and port to listen and serve on. (default "http://0.0.0.0:8080")
-      --db string     DB location (sqlite or postgres)
+      --db string     db location (sqlite or postgres)
   -h, --help          help for this command
       --log string    Set filepath for HTTP log. "" logs to stderr.
 

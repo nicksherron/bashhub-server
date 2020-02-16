@@ -31,6 +31,7 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type cList struct {
@@ -55,31 +56,33 @@ var (
 	dstToken      string
 	sysRegistered bool
 	workers       int
+	unique        bool
+	limit         int
 	wg            sync.WaitGroup
+	wgSrc         sync.WaitGroup
 	cmdList       commandsList
 	transferCmd   = &cobra.Command{
 		Use:   "transfer",
 		Short: "Transfer bashhub history from one server to another",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)
-
 			switch {
 			case srcUser == "":
 				_ = cmd.Usage()
 				fmt.Print("\n\n")
-				log.Fatal("--src-user can't be blank")
-			case srcPass == "":
-				_ = cmd.Usage()
-				fmt.Print("\n\n")
-				log.Fatal("--src-pass can't be blank")
+				log.Fatal("src-user can't be blank")
 			case dstUser == "":
 				_ = cmd.Usage()
 				fmt.Print("\n\n")
 				log.Fatal("--dst-user can't be blank")
-			case dstPass == "":
-				_ = cmd.Usage()
-				fmt.Print("\n\n")
-				log.Fatal("--dst-pass can't be blank")
+			case srcPass == "" || dstPass == "":
+				if srcPass == "" {
+					srcPass = credentials("source")
+				}
+				if dstPass == "" {
+					dstPass = credentials("destination")
+				}
+
 			}
 
 			if workers > 10 && srcURL == "https://bashhub.com" {
@@ -88,30 +91,7 @@ var (
 	than 10 when transferring from https://bashhub.com`)
 				fmt.Print(msg, "\n\n")
 			}
-
-			sysRegistered = false
-			srcToken = getToken(srcURL, srcUser, srcPass)
-			sysRegistered = false
-			dstToken = getToken(dstURL, dstUser, dstPass)
-			cmdList = getCommandList()
-			counter := 0
-			if !progress {
-				bar = pb.ProgressBarTemplate(barTemplate).Start(len(cmdList)).SetMaxWidth(70)
-				bar.Set("message", "transferring ")
-			}
-			client := &http.Client{}
-			// ignore http errors. We try and recover them
-			log.SetOutput(nil)
-			for _, v := range cmdList {
-				wg.Add(1)
-				counter++
-				go commandLookup(v.UUID, client, 0)
-				if counter > workers {
-					wg.Wait()
-					counter = 0
-				}
-			}
-			wg.Wait()
+			run()
 		},
 	}
 )
@@ -120,14 +100,69 @@ func init() {
 	rootCmd.AddCommand(transferCmd)
 	transferCmd.PersistentFlags().StringVar(&srcURL, "src-url", "https://bashhub.com", "source url ")
 	transferCmd.PersistentFlags().StringVar(&srcUser, "src-user", "", "source username")
-	transferCmd.PersistentFlags().StringVar(&srcPass, "src-pass", "", "source password")
+	transferCmd.PersistentFlags().StringVar(&srcPass, "src-pass", "", "source password (default is password prompt)")
 	transferCmd.PersistentFlags().StringVar(&dstURL, "dst-url", "http://localhost:8080", "destination url")
 	transferCmd.PersistentFlags().StringVar(&dstUser, "dst-user", "", "destination username")
-	transferCmd.PersistentFlags().StringVar(&dstPass, "dst-pass", "", "destination password")
+	transferCmd.PersistentFlags().StringVar(&dstPass, "dst-pass", "", "destination password (default is password prompt)")
 	transferCmd.PersistentFlags().BoolVarP(&progress, "quiet", "q", false, "don't show progress bar")
 	transferCmd.PersistentFlags().IntVarP(&workers, "workers", "w", 10, "max number of concurrent requests")
-}
+	transferCmd.PersistentFlags().BoolVarP(&unique, "unique", "u", true, "don't include duplicate commands")
+	transferCmd.PersistentFlags().IntVarP(&limit, "number", "n", 10000, "limit number of commands to transfer")
 
+}
+func credentials(s string) string {
+
+	fmt.Printf("\nEnter %s password: ", s)
+	bytePassword, err := terminal.ReadPassword(0)
+	if err != nil {
+		check(err)
+	}
+	password := string(bytePassword)
+
+	return strings.TrimSpace(password)
+}
+func run() {
+	sysRegistered = false
+	srcToken = getToken(srcURL, srcUser, srcPass)
+	sysRegistered = false
+	dstToken = getToken(dstURL, dstUser, dstPass)
+	cmdList = getCommandList()
+	counter := 0
+
+	if !progress {
+		bar = pb.ProgressBarTemplate(barTemplate).Start(len(cmdList)).SetMaxWidth(70)
+		bar.Set("message", "transferring ")
+	}
+	fmt.Print("\nstarting transfer...\n\n")
+	client := &http.Client{}
+	pipe := make(chan []byte)
+	go func() {
+		for {
+			select {
+			case data := <-pipe:
+				wgSrc.Add(1)
+				go srcSend(data, client)
+			}
+
+		}
+	}()
+	// ignore http errors. We try and recover them
+	log.SetOutput(nil)
+	for _, v := range cmdList {
+		wg.Add(1)
+		counter++
+		go commandLookup(v.UUID, client, 0, pipe)
+		if counter > workers {
+			wg.Wait()
+			counter = 0
+		}
+	}
+	wg.Wait()
+	if !progress {
+		bar.Finish()
+	}
+	wgSrc.Wait()
+}
 func sysRegister(mac string, site string, user string, pass string) string {
 
 	var token string
@@ -166,7 +201,8 @@ func sysRegister(mac string, site string, user string, pass string) string {
 		}
 		j := make(map[string]interface{})
 
-		json.Unmarshal(buf, &j)
+		err = json.Unmarshal(buf, &j)
+		check(err)
 
 		if len(j) == 0 {
 			log.Fatal("login failed for ", site)
@@ -186,6 +222,7 @@ func sysRegister(mac string, site string, user string, pass string) string {
 		"hostname":      host,
 		"mac":           mac,
 	}
+
 	payloadBytes, err := json.Marshal(sys)
 	if err != nil {
 		log.Fatal(err)
@@ -250,9 +287,10 @@ func getToken(site string, user string, pass string) string {
 	}
 	j := make(map[string]interface{})
 
-	json.Unmarshal(buf, &j)
+	err = json.Unmarshal(buf, &j)
+	check(err)
 
-	if len(j) == 0 {
+	if len(j) == 0 || resp.StatusCode == 401 {
 		log.Fatal("login failed for ", site)
 
 	}
@@ -260,7 +298,7 @@ func getToken(site string, user string, pass string) string {
 }
 
 func getCommandList() commandsList {
-	u := strings.TrimSpace(srcURL) + "/api/v1/command/search?unique=true&limit=1000000"
+	u := strings.TrimSpace(srcURL) + fmt.Sprintf("/api/v1/command/search?unique=%v&limit=%v", unique, limit)
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -291,16 +329,18 @@ func getCommandList() commandsList {
 
 	return result
 }
-
-func commandLookup(uuid string, client *http.Client, retries int) {
+func commandLookup(uuid string, client *http.Client, retries int, pipe chan []byte) {
 	defer func() {
+		wg.Done()
 		if r := recover(); r != nil {
 			mem := strings.Contains(fmt.Sprintf("%v", r), "runtime error: invalid memory address")
 			eof := strings.Contains(fmt.Sprintf("%v", r), "EOF")
 			if mem || eof {
 				if retries < 10 {
 					retries++
-					commandLookup(uuid, client, retries)
+					wg.Add(1)
+					go commandLookup(uuid, client, retries, pipe)
+
 				} else {
 					log.SetOutput(os.Stderr)
 					log.Println("ERROR: failed over 10 times looking up command from source with uuid: ", uuid)
@@ -334,7 +374,7 @@ func commandLookup(uuid string, client *http.Client, retries int) {
 	if err != nil {
 		panic(err)
 	}
-	srcSend(body, client)
+	pipe <- body
 }
 
 func srcSend(data []byte, client *http.Client) {
@@ -342,7 +382,7 @@ func srcSend(data []byte, client *http.Client) {
 		if !progress {
 			bar.Add(1)
 		}
-		wg.Done()
+		wgSrc.Done()
 	}()
 	body := bytes.NewReader(data)
 
@@ -363,4 +403,10 @@ func srcSend(data []byte, client *http.Client) {
 	}
 
 	defer resp.Body.Close()
+}
+
+func check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }

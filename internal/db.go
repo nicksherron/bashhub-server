@@ -38,32 +38,29 @@ import (
 )
 
 var (
-	db *sql.DB
-	// DbPath is the postgres connection uri or the sqlite db file location to use for backend.
-	DbPath          string
+	db              *sql.DB
 	connectionLimit int
 )
 
-// DbInit initializes our db.
-func dbInit() {
+func dbInit(dbPath string) {
 	var gormdb *gorm.DB
 	var err error
-	if strings.HasPrefix(DbPath, "postgres://") {
+	if strings.HasPrefix(dbPath, "postgres://") {
 		// postgres
 
-		db, err = sql.Open("postgres", DbPath)
+		db, err = sql.Open("postgres", dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		gormdb, err = gorm.Open("postgres", DbPath)
+		gormdb, err = gorm.Open("postgres", dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 		connectionLimit = 50
 	} else {
 		// sqlite
-		gormdb, err = gorm.Open("sqlite3", DbPath)
+		gormdb, err = gorm.Open("sqlite3", dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -80,13 +77,16 @@ func dbInit() {
 				},
 			})
 
-		DbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc&_loc=auto", DbPath)
-		db, err = sql.Open("sqlite3_with_regex", DbPath)
+		dbPath = fmt.Sprintf("file:%v?cache=shared&mode=rwc&_loc=auto", dbPath)
+		db, err = sql.Open("sqlite3_with_regex", dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		db.Exec("PRAGMA journal_mode=WAL;")
+		_, err = db.Exec("PRAGMA journal_mode=WAL;")
+		if err != nil {
+			log.Fatal(err)
+		}
 		connectionLimit = 1
 
 	}
@@ -222,7 +222,7 @@ func (cmd Command) commandInsert() int64 {
 
 	res, err := db.Exec(`
 	INSERT INTO commands("process_id","process_start_time","exit_status","uuid","command", "created", "path", "user_id", "system_name")
- 	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+ 	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT do nothing`,
 		cmd.ProcessId, cmd.ProcessStartTime, cmd.ExitStatus, cmd.Uuid, cmd.Command, cmd.Created, cmd.Path, cmd.User.ID, cmd.SystemName)
 	if err != nil {
 		log.Fatal(err)
@@ -235,106 +235,107 @@ func (cmd Command) commandInsert() int64 {
 }
 
 func (cmd Command) commandGet() ([]Query, error) {
-	var results []Query
-	var rows *sql.Rows
-	var err error
+	var (
+		results []Query
+		query   string
+	)
 	if cmd.Unique || cmd.Query != "" {
 		//postgres
 		if connectionLimit != 1 {
 			if cmd.SystemName != "" && cmd.Path != "" && cmd.Query != "" && cmd.Unique {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT * FROM  ( 
 			        SELECT DISTINCT ON ("command") command, "uuid", "created"
 			        FROM commands
-			       	WHERE  "user_id" = $1  
-			       	AND "path" = $3 
-			       	AND "system_name" = $4								
-			       	AND "command" ~ $5
+			       	WHERE  "user_id" = '%v'  
+			       	AND "path" = '%v' 
+			       	AND "system_name" = '%v'								
+			       	AND "command" ~ '%v'
 			        ) c
-			    ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Path, cmd.SystemName, cmd.Query)
+			    ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.SystemName, cmd.Query, cmd.Limit)
 
 			} else if cmd.Path != "" && cmd.Query != "" && cmd.Unique {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT * FROM  ( 
 					SELECT DISTINCT ON ("command") command, "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1  
-					AND "path" = $3 
-					AND "command" ~ $4
+					WHERE  "user_id" = '%v'  
+					AND "path" = '%v' 
+					AND "command" ~ '%v'
 					) c
-				ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Path, cmd.Query)
+				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.Query, cmd.Limit)
 
 			} else if cmd.SystemName != "" && cmd.Query != "" {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT "command", "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1  
-					AND "system_name" = $3 
-					AND "command" ~ $4
-				ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.SystemName, cmd.Query)
+					WHERE  "user_id" = '%v'  
+					AND "system_name" = '%v' 
+					AND "command" ~ '%v'
+				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.SystemName, cmd.Query, cmd.Limit)
 
 			} else if cmd.Path != "" && cmd.Query != "" {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT "command", "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1  
-					AND "path" = $3 
-					AND "command" ~ $4
-				ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Path, cmd.Query)
+					WHERE  "user_id" = '%v'  
+					AND "path" = '%v' 
+					AND "command" ~ '%v'
+				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.Query, cmd.Limit)
 
 			} else if cmd.SystemName != "" && cmd.Unique {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT * FROM  ( 
 					SELECT DISTINCT ON ("command") command, "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1  
-					AND "system_name" = $3 
+					WHERE  "user_id" = '%v'  
+					AND "system_name" = '%v' 
 					) c
-				ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.SystemName)
+				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.SystemName, cmd.Limit)
 
 			} else if cmd.Path != "" && cmd.Unique {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT * FROM  ( 
 					SELECT DISTINCT ON ("command") command, "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1  
-					AND "path" = $3
+					WHERE  "user_id" = '%v'  
+					AND "path" = '%v'
 					) c
-				ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Path)
+				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.Limit)
 
 			} else if cmd.Query != "" && cmd.Unique {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT * FROM  ( 
 					SELECT DISTINCT ON ("command") command, "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1  
-					AND "command" ~ $3
+					WHERE  "user_id" = '%v'  
+					AND "command" ~ '%v'
 					) c
-				ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Query)
+				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Query, cmd.Limit)
 
 			} else if cmd.Query != "" {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT "command", "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1  
-					AND "command" ~ $3
-				ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit, cmd.Query)
+					WHERE  "user_id" = '%v'  
+					AND "command" ~ '%v'
+				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Query, cmd.Limit)
 
 			} else {
 				// unique
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT * FROM  ( 
 					SELECT DISTINCT ON ("command") command, "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1   
+					WHERE  "user_id" = '%v'   
 					) c
-				ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit)
+				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Limit)
 			}
 		} else {
 			// sqlite
 			if cmd.SystemName != "" && cmd.Path != "" && cmd.Query != "" && cmd.Unique {
 				// Have to use fmt.Sprintf to build queries where sqlite regexp function is used because of single quotes. Haven't found any other work around.
-				query := fmt.Sprintf(`
+				query = fmt.Sprintf(`
 				SELECT "command",  "uuid", "created" FROM commands
                     WHERE "user_id" =  '%v'  
 					AND "path" = '%v'
@@ -342,120 +343,108 @@ func (cmd Command) commandGet() ([]Query, error) {
 					AND "command" regexp '%v'
 				GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.Path, cmd.SystemName, cmd.Query, cmd.Limit)
 
-				rows, err = db.Query(query)
-
 			} else if cmd.SystemName != "" && cmd.Query != "" && cmd.Unique {
-				query := fmt.Sprintf(`
+				query = fmt.Sprintf(`
 				SELECT "command",  "uuid", "created" FROM commands
                     WHERE "user_id" =  '%v'  
 					AND "system_name" = '%v' 
 					AND "command" regexp '%v'
 				GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.SystemName, cmd.Query, cmd.Limit)
 
-				rows, err = db.Query(query)
-
 			} else if cmd.Path != "" && cmd.Query != "" && cmd.Unique {
-				query := fmt.Sprintf(`
+				query = fmt.Sprintf(`
 				SELECT "command",  "uuid", "created" FROM commands
                     WHERE "user_id" =  '%v'  
 					AND "path" = '%v' 
 					AND "command" regexp '%v'
 				GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.Path, cmd.Query, cmd.Limit)
 
-				rows, err = db.Query(query)
-
 			} else if cmd.SystemName != "" && cmd.Query != "" {
-				query := fmt.Sprintf(`
+				query = fmt.Sprintf(`
 				SELECT "command",  "uuid", "created" FROM commands
 					WHERE "user_id" =  '%v'   
-					AND "system_name" = %v' 
-					AND "command" regexp %v'
+					AND "system_name" = '%v' 
+					AND "command" regexp '%v'
 				ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.SystemName, cmd.Query, cmd.Limit)
 
-				rows, err = db.Query(query)
-
 			} else if cmd.Path != "" && cmd.Query != "" {
-				query := fmt.Sprintf(`
+				query = fmt.Sprintf(`
 				SELECT "command",  "uuid", "created" FROM commands
 					WHERE "user_id" =  '%v'   
-					AND "path" = %v' 
-					AND "command" regexp %v'
+					AND "path" = '%v' 
+					AND "command" regexp '%v'
 				ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.Path, cmd.Query, cmd.Limit)
 
-				rows, err = db.Query(query)
-
 			} else if cmd.SystemName != "" && cmd.Unique {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT "command",  "uuid", "created" FROM commands
-					WHERE  "user_id" = $1   
-					AND "system_name" = $2
-				GROUP BY "command" ORDER  BY  "created" DESC limit $3`, cmd.User.ID, cmd.SystemName, cmd.Limit)
+					WHERE  "user_id" = '%v'   
+					AND "system_name" = '%v'
+				GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.SystemName, cmd.Limit)
 
 			} else if cmd.Path != "" && cmd.Unique {
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT "command",  "uuid", "created" FROM commands
-					WHERE  "user_id" = $1   
-					AND "path" = $2
-				GROUP BY "command" ORDER  BY  "created" DESC limit $3`, cmd.User.ID, cmd.Path, cmd.Limit)
+					WHERE  "user_id" = '%v'   
+					AND "path" = '%v'
+				GROUP BY "command" ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.Path, cmd.Limit)
 
 			} else if cmd.Query != "" && cmd.Unique {
-				query := fmt.Sprintf(`
+				query = fmt.Sprintf(`
 				SELECT "command", "uuid", "created" FROM commands
 					WHERE "user_id" =  '%v'   
 					AND "command" regexp '%v'  
 				GROUP BY "command" ORDER  BY "created" DESC limit '%v'`, cmd.User.ID, cmd.Query, cmd.Limit)
 
-				rows, err = db.Query(query)
-
 			} else if cmd.Query != "" {
-				query := fmt.Sprintf(`
+				query = fmt.Sprintf(`
 				SELECT "command",  "uuid", "created" FROM commands
 					WHERE "user_id" =  '%v'   
 					AND "command" regexp'%v'
 				ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.Query, cmd.Limit)
 
-				rows, err = db.Query(query)
-
 			} else {
 				// unique
-				rows, err = db.Query(`
+				query = fmt.Sprintf(`
 				SELECT "command", "uuid", "created"
 					FROM commands
-					WHERE  "user_id" = $1  
-				GROUP BY "command"  ORDER BY "created" DESC limit $2;`, cmd.User.ID, cmd.Limit)
+					WHERE  "user_id" = '%v'  
+				GROUP BY "command"  ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Limit)
 			}
 		}
 	} else {
 		if cmd.Path != "" {
-			rows, err = db.Query(`
+			query = fmt.Sprintf(`
 			SELECT "command",  "uuid", "created" FROM commands
-				WHERE  "user_id" = $1 
-				AND "path" = $3  
-			ORDER  BY  "created" DESC limit $2`, cmd.User.ID, cmd.Limit, cmd.Path)
+				WHERE  "user_id" = '%v' 
+				AND "path" = '%v'  
+			ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.Path, cmd.Limit)
 		} else if cmd.SystemName != "" {
-			rows, err = db.Query(`
-			SELECT "command",  "uuid", "created" FROM commands
-				WHERE  "user_id" = $1 
-				AND "system_name" = $3  
-			ORDER  BY  "created" DESC limit $2`, cmd.User.ID, cmd.Limit, cmd.SystemName)
+			query = fmt.Sprintf(`SELECT "command",  "uuid", "created" FROM commands
+			WHERE  "user_id" = '%v'
+			AND "system_name" = '%v'
+			ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.SystemName, cmd.Limit)
+
 		} else {
-			rows, err = db.Query(`
+			query = fmt.Sprintf(`
 			SELECT "command",  "uuid", "created" FROM commands
-				WHERE  "user_id" = $1  
-			ORDER  BY  "created" DESC limit $2`, cmd.User.ID, cmd.Limit)
+				WHERE  "user_id" = '%v'  
+			ORDER  BY  "created" DESC limit '%v'`, cmd.User.ID, cmd.Limit)
 		}
 
 	}
 
+	rows, err := db.Query(query)
+
 	if err != nil {
-		return []Query{}, nil
+		return []Query{}, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var result Query
 		err = rows.Scan(&result.Command, &result.Uuid, &result.Created)
 		if err != nil {
-			return []Query{}, nil
+			return []Query{}, err
 		}
 		results = append(results, result)
 	}
@@ -466,11 +455,11 @@ func (cmd Command) commandGet() ([]Query, error) {
 func (cmd Command) commandGetUUID() (Query, error) {
 	var result Query
 	err := db.QueryRow(`
-	SELECT "command","path", "created" , "uuid", "exit_status", "system_name" 
+	SELECT "command","path", "created" , "uuid", "exit_status", "system_name", "process_id" 
 		FROM commands
 		WHERE "uuid" = $1 
 	AND "user_id" = $2`, cmd.Uuid, cmd.User.ID).Scan(&result.Command, &result.Path, &result.Created, &result.Uuid,
-		&result.ExitStatus, &result.SystemName)
+		&result.ExitStatus, &result.SystemName, &result.SessionID)
 	if err != nil {
 		return Query{}, err
 	}
@@ -544,22 +533,24 @@ func (sys System) systemGet() (System, error) {
 func (status Status) statusGet() (Status, error) {
 	var err error
 	if connectionLimit != 1 {
-		err = db.QueryRow(`select
-      									( select count(*) from commands where user_id = $1) as totalCommands,
-      									( select count(distinct process_id) from commands where user_id = $1) as totalSessions,
-      									( select count(distinct system_name) from commands where user_id = $1) as totalSystems,
-      									( select count (*) from commands where to_timestamp(cast(created/1000 as bigint))::date = now()::date and  user_id = $1) as totalCommandsToday,
-      									( select count(*) from commands where process_id = $2) as sessionTotalCommands`,
+		err = db.QueryRow(`
+		select
+      		( select count(*) from commands where user_id = $1) as totalCommands,
+      		( select count(distinct process_id) from commands where user_id = $1) as totalSessions,
+      		( select count(*) from systems where user_id = $1) as totalSystems,
+      		( select count(*) from commands where to_timestamp(cast(created/1000 as bigint))::date = now()::date and  user_id = $1) as totalCommandsToday,
+      		( select count(*) from commands where process_id = $2) as sessionTotalCommands`,
 			status.User.ID, status.ProcessID).Scan(
 			&status.TotalCommands, &status.TotalSessions, &status.TotalSystems,
 			&status.TotalCommandsToday, &status.SessionTotalCommands)
 	} else {
-		err = db.QueryRow(`select
-      									( select count(*) from commands where user_id = $1) as totalCommands,
-      									( select count(distinct process_id) from commands where user_id = $1) as totalSessions,
-      									( select count(distinct system_name) from commands where user_id = $1) as totalSystems,
-      									( select count(*) from commands where date(created/1000, 'unixepoch') = date('now') and  user_id = $1) as totalCommandsToday,
-      									( select count(*) from commands where process_id = $2) as sessionTotalCommands`,
+		err = db.QueryRow(`
+		select
+      		( select count(*) from commands where user_id = $1) as totalCommands,
+      		( select count(distinct process_id) from commands where user_id = $1) as totalSessions,
+      		( select count(*) from systems where user_id = $1) as totalSystems,
+      		( select count(*) from commands where date(created/1000, 'unixepoch') = date('now') and  user_id = $1) as totalCommandsToday,
+      		( select count(*) from commands where process_id = $2) as sessionTotalCommands`,
 			status.User.ID, status.ProcessID).Scan(
 			&status.TotalCommands, &status.TotalSessions, &status.TotalSystems,
 			&status.TotalCommandsToday, &status.SessionTotalCommands)
@@ -570,14 +561,13 @@ func (status Status) statusGet() (Status, error) {
 	return status, err
 }
 
-func importCommands(imp Import) {
-	_, err := db.Exec(`INSERT INTO commands 
-							("command", "path", "created", "uuid", "exit_status",
-							 "system_name", "session_id", "user_id" )
-							 VALUES ($1,$2,$3,$4,$5,$6,$7,(select "id" from users where "username" = $8)) ON CONFLICT do nothing`,
-		imp.Command, imp.Path, imp.Created, imp.Uuid, imp.ExitStatus,
-		imp.SystemName, imp.SessionID, imp.Username)
+func importCommands(imp Import) error {
+	_, err := db.Exec(`
+	INSERT INTO commands ("command", "path", "created", "uuid", "exit_status","system_name", "session_id", "user_id" )
+	VALUES ($1,$2,$3,$4,$5,$6,$7 ,(select "id" from users where "username" = $8)) ON CONFLICT do nothing`,
+		imp.Command, imp.Path, imp.Created, imp.Uuid, imp.ExitStatus, imp.SystemName, imp.SessionID, imp.Username)
 	if err != nil {
-		log.Println(err)
+		return err
 	}
+	return nil
 }

@@ -2,9 +2,12 @@ language: go
 go:
   - "1.13.x"
 
+services:
+  - postgresql
+
 env:
   - GO111MODULE=on
 
 install: true
 
-script: go run *.go version
+script: go test ./... && go test github.com/nicksherron/bashhub-server/internal -postgres-uri "postgres://postgres:@localhost:5432?sslmode=disable"
