@@ -26,7 +26,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -113,6 +112,9 @@ func TestMain(m *testing.M) {
 	var err error
 	testDir, err = ioutil.TempDir("", "bashhub-server-test-")
 	check(err)
+	if testWork {
+		log.Println("TESTWORK=", testDir)
+	}
 
 	src, err = startSrc()
 	check(err)
@@ -178,6 +180,7 @@ func TestCreateToken(t *testing.T) {
 	if srcToken == "" {
 		t.Fatal("srcToken token is blank")
 	}
+
 	sysRegistered = false
 	dstToken = getToken(dstURL, dstUser, dstPass)
 	if dstToken == "" {
@@ -246,37 +249,6 @@ func TestTransfer(t *testing.T) {
 	assert.Equal(t, dstStatus.TotalCommands, srcStatus.TotalCommands)
 }
 
-func BenchmarkGoInserts(b *testing.B) {
-	client := &http.Client{}
-	counter := 0
-	pipe := make(chan []byte)
-	go func() {
-		for {
-			select {
-			case data := <-pipe:
-				wgSrc.Add(1)
-				go srcSend(data, client)
-			}
-
-		}
-	}()
-	for i := 0; i < b.N; i++ {
-		wg.Add(1)
-		counter++
-		n := rand.Intn(commandsN)
-		go commandLookup(cmdList[n].UUID, client, 0, pipe)
-		if counter > workers {
-			wg.Wait()
-			counter = 0
-		}
-	}
-	wg.Wait()
-	if !progress {
-		bar.Finish()
-	}
-	wgSrc.Wait()
-}
-
 func getStatus(t *testing.T, u string, token string) internal.Status {
 	u = fmt.Sprintf("%v/api/v1/client-view/status?processId=1000&startTime=%v", u, sessionStartTime)
 	req, err := http.NewRequest("GET", u, nil)
@@ -318,5 +290,5 @@ func cleanup() {
 		return
 	}
 	log.SetOutput(os.Stderr)
-	log.Println("TESTWORK=", testDir)
+
 }

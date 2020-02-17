@@ -13,7 +13,6 @@ require (
 	github.com/jinzhu/gorm v1.9.12
 	github.com/lib/pq v1.3.0
 	github.com/magiconair/properties v1.8.0
-	github.com/manifoldco/promptui v0.7.0
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.4.0

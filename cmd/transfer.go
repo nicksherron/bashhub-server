@@ -28,6 +28,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/spf13/cobra"
@@ -35,6 +37,7 @@ import (
 )
 
 type cList struct {
+	Retries int
 	UUID    string `json:"uuid"`
 	Command string `json:"command"`
 	Created int64  `json:"created"`
@@ -58,10 +61,14 @@ var (
 	workers       int
 	unique        bool
 	limit         int
-	wg            sync.WaitGroup
+	dstCounter    uint64
+	srcCounter    uint64
+	inserted      uint64
 	wgSrc         sync.WaitGroup
+	wgDst         sync.WaitGroup
 	cmdList       commandsList
-	transferCmd   = &cobra.Command{
+
+	transferCmd = &cobra.Command{
 		Use:   "transfer",
 		Short: "Transfer bashhub history from one server to another",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -127,41 +134,56 @@ func run() {
 	sysRegistered = false
 	dstToken = getToken(dstURL, dstUser, dstPass)
 	cmdList = getCommandList()
-	counter := 0
 
 	if !progress {
 		bar = pb.ProgressBarTemplate(barTemplate).Start(len(cmdList)).SetMaxWidth(70)
 		bar.Set("message", "transferring ")
 	}
 	fmt.Print("\nstarting transfer...\n\n")
-	client := &http.Client{}
-	pipe := make(chan []byte)
+	queue := make(chan cList, len(cmdList))
+	pipe := make(chan []byte, len(cmdList))
+
+	// ignore http errors. We try and recover them
+	log.SetOutput(nil)
 	go func() {
 		for {
 			select {
-			case data := <-pipe:
+			case item := <-queue:
+				wgDst.Add(1)
+				atomic.AddUint64(&dstCounter, 1)
+				go func(cmd cList) {
+					defer wgDst.Done()
+					commandLookup(cmd, pipe, queue)
+				}(item)
+				if atomic.CompareAndSwapUint64(&dstCounter, uint64(workers), 0) {
+					wgDst.Wait()
+				}
+			case result := <-pipe:
 				wgSrc.Add(1)
-				go srcSend(data, client)
+				atomic.AddUint64(&srcCounter, 1)
+				go func(data []byte) {
+					srcSend(data, 0)
+				}(result)
+				if atomic.CompareAndSwapUint64(&srcCounter, uint64(workers), 0) {
+					wgSrc.Wait()
+				}
 			}
-
 		}
 	}()
-	// ignore http errors. We try and recover them
-	log.SetOutput(nil)
 	for _, v := range cmdList {
-		wg.Add(1)
-		counter++
-		go commandLookup(v.UUID, client, 0, pipe)
-		if counter > workers {
-			wg.Wait()
-			counter = 0
-		}
+		v.Retries = 0
+		queue <- v
 	}
-	wg.Wait()
+
+	for {
+		if atomic.CompareAndSwapUint64(&inserted, uint64(len(cmdList)), 0) {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 	if !progress {
 		bar.Finish()
 	}
-	wgSrc.Wait()
 }
 func sysRegister(mac string, site string, user string, pass string) string {
 
@@ -329,21 +351,20 @@ func getCommandList() commandsList {
 
 	return result
 }
-func commandLookup(uuid string, client *http.Client, retries int, pipe chan []byte) {
+
+func commandLookup(item cList, pipe chan []byte, queue chan cList) {
 	defer func() {
-		wg.Done()
 		if r := recover(); r != nil {
 			mem := strings.Contains(fmt.Sprintf("%v", r), "runtime error: invalid memory address")
 			eof := strings.Contains(fmt.Sprintf("%v", r), "EOF")
 			if mem || eof {
-				if retries < 10 {
-					retries++
-					wg.Add(1)
-					go commandLookup(uuid, client, retries, pipe)
-
+				if item.Retries < 10 {
+					item.Retries++
+					queue <- item
+					return
 				} else {
 					log.SetOutput(os.Stderr)
-					log.Println("ERROR: failed over 10 times looking up command from source with uuid: ", uuid)
+					log.Println("ERROR: failed over 10 times looking up command from source with uuid: ", item.UUID)
 					log.SetOutput(nil)
 				}
 			} else {
@@ -353,7 +374,7 @@ func commandLookup(uuid string, client *http.Client, retries int, pipe chan []by
 		}
 	}()
 
-	u := strings.TrimSpace(srcURL) + "/api/v1/command/" + strings.TrimSpace(uuid)
+	u := strings.TrimSpace(srcURL) + "/api/v1/command/" + strings.TrimSpace(item.UUID)
 	req, err := http.NewRequest("GET", u, nil)
 
 	if err != nil {
@@ -361,29 +382,44 @@ func commandLookup(uuid string, client *http.Client, retries int, pipe chan []by
 	}
 	req.Header.Add("Authorization", srcToken)
 
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		log.Fatalf("failed command lookup from %v, go status code %v", srcURL, resp.StatusCode)
-	}
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
 	}
+	if resp.StatusCode != 200 {
+		err = fmt.Errorf("%v response from %v: %v", resp.StatusCode, srcURL, string(body))
+		log.SetOutput(os.Stderr)
+		log.Fatal(err)
+	}
 	pipe <- body
 }
 
-func srcSend(data []byte, client *http.Client) {
+func srcSend(data []byte, retries int) {
 	defer func() {
+		if r := recover(); r != nil {
+			retries++
+			if retries < 10 {
+				srcSend(data, retries)
+				return
+			}
+			log.SetOutput(os.Stderr)
+			log.Println("Error on response.\n", r)
+			log.SetOutput(nil)
+		}
 		if !progress {
 			bar.Add(1)
 		}
+		atomic.AddUint64(&inserted, 1)
 		wgSrc.Done()
 	}()
+
 	body := bytes.NewReader(data)
 
 	u := dstURL + "/api/v1/import"
@@ -392,17 +428,13 @@ func srcSend(data []byte, client *http.Client) {
 		log.SetOutput(os.Stderr)
 		log.Fatal(err)
 	}
+
 	req.Header.Add("Authorization", dstToken)
-
-	resp, err := client.Do(req)
-
+	_, err = http.DefaultClient.Do(req)
 	if err != nil {
 		log.SetOutput(os.Stderr)
-		log.Println("Error on response.\n", err)
-		log.SetOutput(nil)
+		log.Fatal(err)
 	}
-
-	defer resp.Body.Close()
 }
 
 func check(err error) {

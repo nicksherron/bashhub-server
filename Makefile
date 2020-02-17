@@ -14,12 +14,12 @@ help:
 	@echo 'Management commands for bashhub-server:'
 	@echo
 	@echo 'Usage:'
-	@echo '    make build           Compile the project.'
+	@echo '    make build           Compile the project'
 	@echo '    make docker-build    Build docker image'
 	@echo '    make clean           Clean the directory tree'
-	@echo '    make test            Run tests on a compiled project.'
-	@echo '    make test-postgres   Start postgres in ephemeral docker container and run backend tests.'
-	@echo '    make test-all   		Run test and test-postgres.'
+	@echo '    make test            Run tests on a compiled project'
+	@echo '    make test-postgres   Start postgres in ephemeral docker container and run backend tests'
+	@echo '    make test-all        Run test and test-postgres'
 	@echo
 
 build:

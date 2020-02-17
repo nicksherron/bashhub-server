@@ -44,14 +44,14 @@ type User struct {
 }
 
 type Query struct {
-	Command    string `json:"command"`
-	Path       string `json:"path"`
-	Created    int64  `json:"created"`
-	Uuid       string `json:"uuid"`
-	ExitStatus int    `json:"exitStatus"`
-	Username   string `json:"username"`
-	SystemName string `gorm:"-"  json:"systemName"`
-	SessionID  string `json:"sessionId"`
+	Command    string  `json:"command"`
+	Path       string  `json:"path"`
+	Created    int64   `json:"created"`
+	Uuid       string  `json:"uuid"`
+	ExitStatus int     `json:"exitStatus"`
+	Username   string  `json:"username"`
+	SystemName string  `gorm:"-"  json:"systemName"`
+	SessionID  *string `json:"sessionId"`
 }
 
 type Command struct {
