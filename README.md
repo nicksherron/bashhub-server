@@ -12,7 +12,7 @@ added features like regex search.
 - [Import](https://github.com/nicksherron/bashhub-server#transferring-history-from-bashhubcom) old history from bashhub.com
 - Quickly connect any client with  access to your server bashhub-sever address/port.
 - Written in Go so it's fast and is actively maintained
-- Salt hashed password encrpytion and jwt authentication protected endpoints
+- Salt hashed password encryption and jwt authentication protected endpoints
 
 ## Why? 
 I love the idea behind bashhub. Having my shell history centralized and queryable from various systems whether it 
