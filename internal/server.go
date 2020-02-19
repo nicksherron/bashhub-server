@@ -294,7 +294,13 @@ func setupRouter(dbPath string, logFile string) *gin.Engine {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			c.IndentedJSON(http.StatusOK, result)
+			if len(result) != 0 {
+				c.IndentedJSON(http.StatusOK, result)
+				return
+			} else {
+				c.JSON(http.StatusOK, gin.H{})
+			}
+
 		} else {
 			command.Uuid = c.Param("path")
 			result, err := command.commandGetUUID()
