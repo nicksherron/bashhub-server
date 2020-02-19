@@ -22,8 +22,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
 	"strings"
+	"syscall"
 
 	"github.com/fatih/color"
 	"github.com/nicksherron/bashhub-server/internal"
@@ -32,14 +37,20 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var (
-	logFile string
-	dbPath  string
-	addr    string
-	rootCmd = &cobra.Command{
+	logFile      string
+	dbPath       string
+	addr         string
+	traceProfile = os.Getenv("BH_SERVER_DEBUG_TRACE")
+	cpuProfile   = os.Getenv("BH_SERVER_DEBUG_CPU")
+	memProfile   = os.Getenv("BH_SERVER_DEBUG_MEM")
+	rootCmd      = &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)
 			checkBhEnv()
 			startupMessage()
+			if cpuProfile != "" || memProfile != "" || traceProfile != "" {
+				profileInit()
+			}
 			internal.Run(dbPath, logFile, addr)
 		},
 	}
@@ -120,4 +131,52 @@ If you will be running bashhub-client locally be sure to add
 export BH_URL=%v to your .bashrc or .zshrc`, addr)
 		fmt.Println(msg)
 	}
+}
+
+func profileInit() {
+
+	go func() {
+		defer os.Exit(1)
+		if traceProfile != "" {
+			f, err := os.Create(traceProfile)
+			if err != nil {
+				log.Fatal("could not create trace profile: ", err)
+			}
+			defer f.Close()
+			if err := trace.Start(f); err != nil {
+				log.Fatal("could not start trace profile: ", err)
+			}
+			defer trace.Stop()
+		}
+
+		if cpuProfile != "" {
+			f, err := os.Create(cpuProfile)
+			if err != nil {
+				log.Fatal("could not create CPU profile: ", err)
+			}
+			defer f.Close()
+			if err := pprof.StartCPUProfile(f); err != nil {
+				log.Fatal("could not start CPU profile: ", err)
+			}
+			defer pprof.StopCPUProfile()
+		}
+
+		defer func() {
+			if memProfile != "" {
+				mf, err := os.Create(memProfile)
+				if err != nil {
+					log.Fatal("could not create memory profile: ", err)
+				}
+				defer mf.Close()
+				runtime.GC() // get up-to-date statistics
+				if err := pprof.WriteHeapProfile(mf); err != nil {
+					log.Fatal("could not write memory profile: ", err)
+				}
+			}
+		}()
+
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		<-sigs
+	}()
 }
