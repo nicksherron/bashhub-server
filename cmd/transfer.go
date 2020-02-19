@@ -153,7 +153,7 @@ func run() {
 				atomic.AddUint64(&dstCounter, 1)
 				go func(cmd cList) {
 					defer wgDst.Done()
-					commandLookup(cmd, pipe, queue)
+					cmd.commandLookup(pipe, queue)
 				}(item)
 				if atomic.CompareAndSwapUint64(&dstCounter, uint64(workers), 0) {
 					wgDst.Wait()
@@ -352,7 +352,7 @@ func getCommandList() commandsList {
 	return result
 }
 
-func commandLookup(item cList, pipe chan []byte, queue chan cList) {
+func (item cList) commandLookup(pipe chan []byte, queue chan cList) {
 	defer func() {
 		if r := recover(); r != nil {
 			mem := strings.Contains(fmt.Sprintf("%v", r), "runtime error: invalid memory address")

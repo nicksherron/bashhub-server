@@ -18,12 +18,12 @@
 
 set -eou pipefail
 
-CONTAINER="bashhub-postgres-test"
+CONTAINER_1="bashhub-postgres-test"
 
-docker run -d --rm --name ${CONTAINER} -p 5444:5432 postgres
+docker run -d --rm --name ${CONTAINER_1} -p 5444:5432 postgres
 
 
-until [ "$(docker exec bashhub-postgres-test pg_isready \
+until [ "$(docker exec ${CONTAINER_1} pg_isready \
           -p 5432 -h localhost -U postgres -d postgres)" == "localhost:5432 - accepting connections" ]; do
     sleep 0.1;
 done;
@@ -31,4 +31,31 @@ done;
 go test github.com/nicksherron/bashhub-server/internal \
   -postgres-uri "postgres://postgres:@localhost:5444?sslmode=disable"
 
-docker stop -t 0 ${CONTAINER} & docker wait ${CONTAINER}
+docker stop -t 0 ${CONTAINER_1} & docker wait ${CONTAINER_1}
+
+
+CONTAINER_2="bashhub-postgres-test-1"
+CONTAINER_3="bashhub-postgres-test-2"
+
+
+docker run -d --rm --name ${CONTAINER_2} -p 5445:5432 postgres
+docker run -d --rm --name ${CONTAINER_3} -p 5446:5432 postgres
+
+until [ "$(docker exec ${CONTAINER_2} pg_isready \
+          -p 5432 -h localhost -U postgres -d postgres)" == "localhost:5432 - accepting connections" ]; do
+    sleep 0.1;
+done;
+
+
+until [ "$(docker exec ${CONTAINER_3} pg_isready \
+          -p 5432 -h localhost -U postgres -d postgres)" == "localhost:5432 - accepting connections" ]; do
+    sleep 0.1;
+done;
+
+
+go test github.com/nicksherron/bashhub-server/cmd \
+ -src-postgres-uri "postgres://postgres:@localhost:5445?sslmode=disable" \
+ -dst-postgres-uri "postgres://postgres:@localhost:5446?sslmode=disable"
+
+docker stop -t 0 ${CONTAINER_2} & docker wait ${CONTAINER_2}
+docker stop -t 0 ${CONTAINER_3} & docker wait ${CONTAINER_3}

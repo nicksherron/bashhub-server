@@ -44,11 +44,24 @@ import (
 var (
 	testWork         bool
 	testDir          string
-	src              *exec.Cmd
-	dst              *exec.Cmd
+	srcCmd           *exec.Cmd
+	dstCmd           *exec.Cmd
 	sessionStartTime int64
 	commandsN        int
+	srcPostgres      string
+	dstPostgres      string
+	dst              user
+	src              user
 )
+
+type user struct {
+	url       string
+	username  string
+	pass      string
+	db        string
+	httpLog   string
+	stderrLog io.Writer
+}
 
 func init() {
 	flag.StringVar(&srcURL, "src-url", "http://localhost:55555", "source url ")
@@ -60,15 +73,19 @@ func init() {
 	flag.IntVar(&workers, "workers", 10, "max number of concurrent requests")
 	flag.IntVar(&commandsN, "number", 200, "number of commmands to use for test")
 	flag.BoolVar(&testWork, "testwork", false, "don't remove sqlite db and server log when done and print location")
+	flag.StringVar(&srcPostgres, "src-postgres-uri", "", "postgres uri to use for postgres tests")
+	flag.StringVar(&dstPostgres, "dst-postgres-uri", "", "postgres uri to use for postgres tests")
+
 }
 
-func startServer(cmd string, args []string, writer io.Writer) (p *exec.Cmd, err error) {
+func (u user) startServer() (p *exec.Cmd, err error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		check(err)
 	}
 	parent := filepath.Dir(cwd)
-
+	cmd := "go"
+	args := []string{"run", ".", "-a", u.url, "--db", u.db, "--log", u.httpLog}
 	if cmd, err = exec.LookPath(cmd); err == nil {
 		var procAttr os.ProcAttr
 		procAttr.Dir = parent
@@ -77,59 +94,52 @@ func startServer(cmd string, args []string, writer io.Writer) (p *exec.Cmd, err 
 		p := exec.Command(cmd, args...)
 		p.Dir = parent
 		p.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		p.Stderr = writer
+		p.Stderr = u.stderrLog
 		return p, nil
 	}
 	return nil, err
 }
 
-func startSrc() (*exec.Cmd, error) {
-	srcDB := filepath.Join(testDir, "src.db")
-	srcLog := filepath.Join(testDir, "src-server.log")
+func setup(srcDB string, dstDB string) {
 	srcErr := filepath.Join(testDir, "src-stderr.log")
-	srcArgs := []string{"run", ".", "-a", srcURL, "--db", srcDB, "--log", srcLog}
-	f, err := os.Create(srcErr)
+	srcStderrLog, err := os.Create(srcErr)
 	check(err)
-	return startServer("go", srcArgs, f)
-}
 
-func startDst() (*exec.Cmd, error) {
-	dstDB := filepath.Join(testDir, "dst.db")
-	dstLog := filepath.Join(testDir, "dst-server.log")
-	srcErr := filepath.Join(testDir, "dst-stderr.log")
-	dstArgs := []string{"run", ".", "-a", dstURL, "--db", dstDB, "--log", dstLog}
-	f, err := os.Create(srcErr)
-	check(err)
-	return startServer("go", dstArgs, f)
-
-}
-
-func TestMain(m *testing.M) {
-	flag.Parse()
-
-	defer cleanup()
-
-	var err error
-	testDir, err = ioutil.TempDir("", "bashhub-server-test-")
-	check(err)
-	if testWork {
-		log.Println("TESTWORK=", testDir)
+	src = user{
+		url:       srcURL,
+		username:  srcUser,
+		pass:      srcPass,
+		db:        srcDB,
+		httpLog:   filepath.Join(testDir, "src-server.log"),
+		stderrLog: srcStderrLog,
 	}
 
-	src, err = startSrc()
-	check(err)
-	err = src.Start()
-	check(err)
-
-	dst, err = startDst()
-	check(err)
-	err = dst.Start()
+	dstErr := filepath.Join(testDir, "dst-stderr.log")
+	dstStderrLog, err := os.Create(dstErr)
 	check(err)
 
+	dst = user{
+		url:       dstURL,
+		username:  dstUser,
+		pass:      dstPass,
+		db:        dstDB,
+		httpLog:   filepath.Join(testDir, "dst-server.log"),
+		stderrLog: dstStderrLog,
+	}
+
+	srcCmd, err = src.startServer()
+	check(err)
+	err = srcCmd.Start()
+	check(err)
+
+	dstCmd, err = dst.startServer()
+	check(err)
+	err = dstCmd.Start()
+	check(err)
 	tries := 0
 
 	for {
-		if ping(srcURL) == nil && ping(dstURL) == nil {
+		if src.ping() == nil && dst.ping() == nil {
 			break
 		}
 		tries++
@@ -139,25 +149,49 @@ func TestMain(m *testing.M) {
 		time.Sleep(2 * time.Second)
 	}
 
-	createUser(srcURL, srcUser, srcPass)
-	createUser(dstURL, dstUser, dstPass)
-
-	m.Run()
+	src.createUser()
+	dst.createUser()
 }
 
-func ping(u string) error {
-	_, err := http.Get(fmt.Sprintf("%v/ping", u))
+func TestMain(m *testing.M) {
+	flag.Parse()
+	var err error
+	testDir, err = ioutil.TempDir("", "bashhub-server-test-")
+	check(err)
+	if testWork {
+		log.Println("TESTWORK=", testDir)
+	}
+	defer cleanup()
+	setup(filepath.Join(testDir, "src.db"), filepath.Join(testDir, "dst.db"))
+	m.Run()
+
+	if srcPostgres != "" && dstPostgres != "" {
+		log.SetOutput(os.Stderr)
+		log.Print("postgres tests")
+		cleanup()
+		testDir, err = ioutil.TempDir("", "bashhub-server-test-")
+		check(err)
+		if testWork {
+			log.Println("TESTWORK=", testDir)
+		}
+		setup(srcPostgres, dstPostgres)
+		m.Run()
+	}
+}
+
+func (u user) ping() error {
+	_, err := http.Get(fmt.Sprintf("%v/ping", u.url))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func createUser(u string, user string, pass string) {
+func (u user) createUser() {
 	auth := map[string]interface{}{
 		"email":    "foo@gmail.com",
-		"Username": user,
-		"password": pass,
+		"Username": u.username,
+		"password": u.pass,
 	}
 
 	payloadBytes, err := json.Marshal(auth)
@@ -165,8 +199,8 @@ func createUser(u string, user string, pass string) {
 		log.Fatal(err)
 	}
 	body := bytes.NewReader(payloadBytes)
-	u = fmt.Sprintf("%v/api/v1/user", u)
-	req, err := http.NewRequest("POST", u, body)
+	uri := fmt.Sprintf("%v/api/v1/user", u.url)
+	req, err := http.NewRequest("POST", uri, body)
 
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
@@ -207,7 +241,7 @@ func commandInsert() {
 			tc.Uuid = uid.String()
 			tc.ExitStatus = 0
 			tc.SystemName = "system"
-			tc.SessionID = "1000"
+			tc.ProcessId = 1000
 			tc.User.Username = srcUser
 			tc.ProcessStartTime = sessionStartTime
 
@@ -275,10 +309,10 @@ func getStatus(t *testing.T, u string, token string) internal.Status {
 
 func cleanup() {
 	defer func() {
-		if err := syscall.Kill(-dst.Process.Pid, syscall.SIGKILL); err != nil {
+		if err := syscall.Kill(-srcCmd.Process.Pid, syscall.SIGKILL); err != nil {
 			log.Println("failed to kill: ", err)
 		}
-		if err := syscall.Kill(-src.Process.Pid, syscall.SIGKILL); err != nil {
+		if err := syscall.Kill(-dstCmd.Process.Pid, syscall.SIGKILL); err != nil {
 			log.Println("failed to kill: ", err)
 		}
 	}()
