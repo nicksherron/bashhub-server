@@ -66,7 +66,7 @@ func dbInit(dbPath string) {
 		}
 		// sqlite regex function
 		regex := func(re, s string) (bool, error) {
-			b, e := regexp.MatchString(fmt.Sprintf(`(?i)%v`, re), s)
+			b, e := regexp.MatchString(re, s)
 			return b, e
 		}
 
@@ -247,10 +247,10 @@ func (cmd Command) commandGet() ([]Query, error) {
 				SELECT * FROM  ( 
 			        SELECT DISTINCT ON ("command") command, "uuid", "created"
 			        FROM commands
-					WHERE  "user_id" = '%v'
-					AND "path" = '%v'
-					AND "system_name" = '%v'
-					AND "command" ~* '%v'
+			       	WHERE  "user_id" = '%v'  
+			       	AND "path" = '%v' 
+			       	AND "system_name" = '%v'								
+			       	AND "command" ~ '%v'
 			        ) c
 			    ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.SystemName, cmd.Query, cmd.Limit)
 
@@ -261,7 +261,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 					FROM commands
 					WHERE  "user_id" = '%v'  
 					AND "path" = '%v' 
-					AND "command" ~* '%v'
+					AND "command" ~ '%v'
 					) c
 				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.Query, cmd.Limit)
 
@@ -271,7 +271,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 					FROM commands
 					WHERE  "user_id" = '%v'  
 					AND "system_name" = '%v' 
-					AND "command" ~* '%v'
+					AND "command" ~ '%v'
 				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.SystemName, cmd.Query, cmd.Limit)
 
 			} else if cmd.Path != "" && cmd.Query != "" {
@@ -280,7 +280,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 					FROM commands
 					WHERE  "user_id" = '%v'  
 					AND "path" = '%v' 
-					AND "command" ~* '%v'
+					AND "command" ~ '%v'
 				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Path, cmd.Query, cmd.Limit)
 
 			} else if cmd.SystemName != "" && cmd.Unique {
@@ -309,7 +309,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 					SELECT DISTINCT ON ("command") command, "uuid", "created"
 					FROM commands
 					WHERE  "user_id" = '%v'  
-					AND "command" ~* '%v'
+					AND "command" ~ '%v'
 					) c
 				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Query, cmd.Limit)
 
@@ -318,7 +318,7 @@ func (cmd Command) commandGet() ([]Query, error) {
 				SELECT "command", "uuid", "created"
 					FROM commands
 					WHERE  "user_id" = '%v'  
-					AND "command" ~* '%v'
+					AND "command" ~ '%v'
 				ORDER BY "created" DESC limit '%v';`, cmd.User.ID, cmd.Query, cmd.Limit)
 
 			} else {
