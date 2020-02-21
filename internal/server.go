@@ -101,15 +101,10 @@ type Config struct {
 	ID      int
 	Created time.Time
 }
+
 type Import Query
 
-var (
-	// Addr is the listen and server address for our server (gin)
-	//Addr string
-	// LogFile is the log file location for http logging. Default is stderr.
-	//logFile string
-	config Config
-)
+var config Config
 
 func getLog(logFile string) io.Writer {
 	switch {
@@ -126,7 +121,7 @@ func getLog(logFile string) io.Writer {
 	}
 }
 
-// LoggerWithFormatter instance a Logger middleware with the specified log format function.
+// loggerWithFormatterWriter instance a Logger middleware with the specified log format function.
 func loggerWithFormatterWriter(logFile string, f gin.LogFormatter) gin.HandlerFunc {
 	return gin.LoggerWithConfig(gin.LoggerConfig{
 		Formatter: f,
