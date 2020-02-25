@@ -92,7 +92,7 @@ $ echo "export BH_URL=http://localhost:8080" >> ~/.bashrc
 ```
 or 
 ```
-$ echo "export BH_URL=http://localhost:8080" >> ~/.zshr
+$ echo "export BH_URL=http://localhost:8080" >> ~/.zshrc
 ```
 Thats it! Restart your shell and re-run bashhub setup.
 ```
