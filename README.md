@@ -81,7 +81,7 @@ $ bashhub-server
 
 2020/02/10 03:04:11 Listening and serving HTTP on http://0.0.0.0:8080
 ```
-or on docker 
+or on docker (backend database files are persisted in container volume `/data`)
 
 ```
 $ docker run -d -p 8080:8080 --name bashhub-server  nicksherron/bashhub-server 
