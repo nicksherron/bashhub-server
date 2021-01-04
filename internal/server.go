@@ -130,7 +130,7 @@ func loggerWithFormatterWriter(logFile string, f gin.LogFormatter) gin.HandlerFu
 }
 
 // configure routes and middleware
-func setupRouter(dbPath string, logFile string) *gin.Engine {
+func setupRouter(dbPath string, logFile string, registration bool) *gin.Engine {
 	dbInit(dbPath)
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -233,6 +233,10 @@ func setupRouter(dbPath string, logFile string) *gin.Engine {
 
 	r.POST("/api/v1/user", func(c *gin.Context) {
 		var user User
+        if !registration {
+            c.String(403, "Registration of new users is not allowed.")
+            return
+        }
 		if err := c.ShouldBindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -470,8 +474,8 @@ func setupRouter(dbPath string, logFile string) *gin.Engine {
 }
 
 // Run starts server
-func Run(dbFile string, logFile string, addr string) {
-	r := setupRouter(dbFile, logFile)
+func Run(dbFile string, logFile string, addr string, registration bool) {
+	r := setupRouter(dbFile, logFile, registration)
 
 	addr = strings.ReplaceAll(addr, "http://", "")
 	err := r.Run(addr)
