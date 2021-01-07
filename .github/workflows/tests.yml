@@ -18,3 +18,5 @@ jobs:
           && docker run -d --net=host postgres \
           && go test github.com/nicksherron/bashhub-server/internal \
           -postgres-uri "postgres://postgres:@localhost:5432?sslmode=disable"
+        env:
+              GO111MODULE: on
