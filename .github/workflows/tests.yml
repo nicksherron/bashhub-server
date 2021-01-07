@@ -9,14 +9,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Run tests
-        run: go test ./... \
-          && docker run -d --net=host postgres \
-          && go test github.com/nicksherron/bashhub-server/internal \
-          -postgres-uri "postgres://postgres:@localhost:5432?sslmode=disable"
+    
+    services:
+      postgres:
+        image: postgres:latest
         env:
-              GO111MODULE: on
+          POSTGRES_DB: postgres        
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:       
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Run tests with postgres
+      run:  go test -v github.com/nicksherron/bashhub-server/internal -postgres-uri "postgres://postgres:postgres@localhost:5432?sslmode=disable"
+      
+    - name: Run tests with sqlite
+      run: go test -v ./... 
