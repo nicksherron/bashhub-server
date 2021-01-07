@@ -90,7 +90,7 @@ func TestMain(m *testing.M) {
 		log.Print("postgres tests")
 		dbPath := *postgres
 		logFile := filepath.Join(testDir, "postgres-server.log")
-		router = setupRouter(dbPath, logFile)
+		router = setupRouter(dbPath, logFile, true)
 		m.Run()
 	}
 
