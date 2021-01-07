@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run tests
+        run: go test ./... \
+          && docker run -d --net=host postgres \
+          && go test github.com/nicksherron/bashhub-server/internal \
+          -postgres-uri "postgres://postgres:@localhost:5432?sslmode=disable"
