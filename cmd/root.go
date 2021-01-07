@@ -40,6 +40,7 @@ var (
 	logFile      string
 	dbPath       string
 	addr         string
+	registration bool
 	traceProfile = os.Getenv("BH_SERVER_DEBUG_TRACE")
 	cpuProfile   = os.Getenv("BH_SERVER_DEBUG_CPU")
 	memProfile   = os.Getenv("BH_SERVER_DEBUG_MEM")
@@ -51,7 +52,7 @@ var (
 			if cpuProfile != "" || memProfile != "" || traceProfile != "" {
 				profileInit()
 			}
-			internal.Run(dbPath, logFile, addr)
+			internal.Run(dbPath, logFile, addr, registration)
 		},
 	}
 )
@@ -69,6 +70,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&logFile, "log", "", `Set filepath for HTTP log. "" logs to stderr`)
 	rootCmd.PersistentFlags().StringVar(&dbPath, "db", sqlitePath(), "db location (sqlite or postgres)")
 	rootCmd.PersistentFlags().StringVarP(&addr, "addr", "a", listenAddr(), "Ip and port to listen and serve on")
+	rootCmd.PersistentFlags().BoolVarP(&registration, "registration", "r", true, "Allow user registration")
 
 }
 
@@ -78,7 +80,7 @@ func startupMessage() {
  _               _     _           _     
 | |             | |   | |         | |		version: %v
 | |__   __ _ ___| |__ | |__  _   _| |		address: %v	
-| '_ \ / _' / __| '_ \| '_ \| | | | '_ \ 
+| '_ \ / _' / __| '_ \| '_ \| | | | '_ \	registration: %v
 | |_) | (_| \__ \ | | | | | | |_| | |_) |
 |_.__/ \__,_|___/_| |_|_| |_|\__,_|_.__/ 
  ___  ___ _ ____   _____ _ __            
@@ -86,7 +88,7 @@ func startupMessage() {
 \__ \  __/ |   \ V /  __/ |              
 |___/\___|_|    \_/ \___|_|              
                                                                                   
-`, Version, addr)
+`, Version, addr, registration)
 	color.HiGreen(banner)
 	log.Printf("\nListening and serving HTTP on %v\n", addr)
 }

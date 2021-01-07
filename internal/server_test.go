@@ -75,7 +75,7 @@ func TestMain(m *testing.M) {
 	dbPath := filepath.Join(testDir, "test.db")
 	logFile := filepath.Join(testDir, "server.log")
 	log.Print("sqlite tests")
-	router = setupRouter(dbPath, logFile)
+	router = setupRouter(dbPath, logFile, true)
 
 	system = sysStruct{
 		user:  "tester",
