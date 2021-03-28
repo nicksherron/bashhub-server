@@ -1,5 +1,5 @@
 # bashhub-server
-[![CI](https://github.com/nicksherron/bashhub-server/actions/workflows/tests.yml/badge.svg)](https://github.com/nicksherron/bashhub-server/actions/workflows/tests.yml) [![Docker Pulls](https://img.shields.io/docker/pulls/nicksherron/bashhub-server.svg)]
+[![CI](https://github.com/nicksherron/bashhub-server/actions/workflows/tests.yml/badge.svg)](https://github.com/nicksherron/bashhub-server/actions/workflows/tests.yml) <img src="https://img.shields.io/docker/pulls/nicksherron/bashhub-server.svg">
 [![Go Report Card](https://goreportcard.com/badge/github.com/nicksherron/bashhub-server)](https://goreportcard.com/report/github.com/nicksherron/bashhub-server) 
 
 bashhub-server is a private cloud alternative for  [bashhub-client](https://github.com/rcaloras/bashhub-client) with some
