@@ -75,7 +75,6 @@ func init() {
 	flag.BoolVar(&testWork, "testwork", false, "don't remove sqlite db and server log when done and print location")
 	flag.StringVar(&srcPostgres, "src-postgres-uri", "", "postgres uri to use for postgres tests")
 	flag.StringVar(&dstPostgres, "dst-postgres-uri", "", "postgres uri to use for postgres tests")
-
 }
 
 func (u user) startServer() (p *exec.Cmd, err error) {
@@ -89,8 +88,10 @@ func (u user) startServer() (p *exec.Cmd, err error) {
 	if cmd, err = exec.LookPath(cmd); err == nil {
 		var procAttr os.ProcAttr
 		procAttr.Dir = parent
-		procAttr.Files = []*os.File{os.Stdin,
-			os.Stdout, os.Stderr}
+		procAttr.Files = []*os.File{
+			os.Stdin,
+			os.Stdout, os.Stderr,
+		}
 		p := exec.Command(cmd, args...)
 		p.Dir = parent
 		p.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -154,6 +155,9 @@ func setup(srcDB string, dstDB string) {
 }
 
 func TestMain(m *testing.M) {
+	// TODO: determine why tests are failing and rewrite this awful code, I was just learing go when this was written
+	// and it shows. See #24
+
 	flag.Parse()
 	var err error
 	testDir, err = ioutil.TempDir("", "bashhub-server-test-")
@@ -205,7 +209,6 @@ func (u user) createUser() {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	defer resp.Body.Close()
-
 }
 
 func TestCreateToken(t *testing.T) {
@@ -324,5 +327,4 @@ func cleanup() {
 		return
 	}
 	log.SetOutput(os.Stderr)
-
 }
