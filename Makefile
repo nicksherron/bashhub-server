@@ -5,7 +5,8 @@ VERSION=$(shell git tag | sort --version-sort -r | head -1)
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 BUILD_DATE=$(shell date '+%Y-%m-%d-%H:%M:%S')
-IMAGE_NAME="nicksherron/bashhub-server"
+TAG_NAME := $(or ${TAG_NAME},${TAG_NAME},$(VERSION))
+IMAGE_NAME="nicksherron/bashhub-server:$(TAG_NAME)"
 
 
 default: help
@@ -28,7 +29,12 @@ build:
 	go build  -ldflags "-X github.com/nicksherron/bashhub-server/cmd.Version=$(VERSION) -X github.com/nicksherron/bashhub-server/cmd.GitCommit=$(GIT_COMMIT) -X github.com/nicksherron/bashhub-server/cmd.BuildDate=$(BUILD_DATE)" -o bin/${BIN_NAME}
 
 docker-build:
-	docker build --no-cache=true --build-arg VERSION=${VERSION} --build-arg BUILD_DATE=${BUILD_DATE} --build-arg GIT_COMMIT=${GIT_COMMIT}  -t $(IMAGE_NAME) .
+	docker buildx build --push \
+		--platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
+		--no-cache=true \
+		--build-arg VERSION=${VERSION} \
+		--build-arg BUILD_DATE=${BUILD_DATE} \
+		--build-arg GIT_COMMIT=${GIT_COMMIT}  -t $(IMAGE_NAME) .
 
 clean:
 	@test ! -e bin/$(BIN_NAME) || rm bin/$(BIN_NAME)

@@ -23,7 +23,7 @@ ARG BUILD_DATE
 
 ARG CGO=1
 ENV CGO_ENABLED=${CGO}
-ENV GOOS=linux
+#ENV GOOS=linux
 ENV GO111MODULE=on
 
 WORKDIR /go/src/github.com/nicksherron/bashhub-server
