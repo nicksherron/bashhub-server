@@ -22,7 +22,7 @@ jobs:
       - name: Get docker version
         id: get_docker_version
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | sed 's/v//g' )
-      - uses: elgohr/Publish-Docker-Github-Action@master
+      - uses: elgohr/Publish-Docker-Github-Action@v5
         with:
           name: nicksherron/bashhub-server
           username: ${{ secrets.DOCKER_USERNAME }}
